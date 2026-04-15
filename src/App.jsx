@@ -342,17 +342,112 @@ const EPISTEMIC_PROMPTS = [
 
 /** Full View + reply panel: when no theme is selected yet (study thread). */
 const STUDY_NEUTRAL_PROMPTS = [
-  { id:"sn1", icon:"🔍", label:"Connect the readings", text:"What argument or example from this week's readings shifts how you think about AI, data, authorship, or learning? Name it and tie it to a theme on the map.", starter:"From this week's readings, one idea that changes my thinking is " },
-  { id:"sn2", icon:"⚖️", label:"Name a tension", text:"Where do ethics, creativity, data fluency, teaching design, or policy seem to pull in different directions in this thread?", starter:"One tension I see across these themes is " },
-  { id:"sn3", icon:"🔗", label:"Bridge two themes", text:"Pick two clusters and describe how a data or design choice in one area could reshape practice in the other.", starter:"Connecting two themes on the map, one relationship worth discussing is " },
+  { id:"sn1", icon:"🔍", label:"Connect the readings", text:"What argument or example from this week's readings shifts how you think about AI, data, authorship, or learning? Name it and tie it to a theme on the map.", bullets:["Name the reading + author or section.", "Say which map theme it belongs with and why.", "End with one implication for class or practice."], starter:"From this week's readings, one idea that changes my thinking is " },
+  { id:"sn2", icon:"⚖️", label:"Name a tension", text:"Where do ethics, creativity, data fluency, teaching design, or policy seem to pull in different directions in this thread?", bullets:["Pick two forces that clash (e.g., speed vs. care).", "Give a concrete scenario where the tension shows up.", "Propose a compromise—not a slogan."], starter:"One tension I see across these themes is " },
+  { id:"sn3", icon:"🔗", label:"Bridge two themes", text:"Pick two clusters and describe how a data or design choice in one area could reshape practice in the other.", bullets:["Name both themes from the map.", "Describe the causal or ethical link in one sentence.", "Say who bears the cost if the bridge is ignored."], starter:"Connecting two themes on the map, one relationship worth discussing is " },
 ];
 
-/** Study thread gap clusters (no posts yet). */
-const STUDY_GAP_PROMPTS = [
-  { id:"sg1", icon:"🔍", label:"Seed this theme", text:"No one has posted here yet. Offer a first take that ties this week's readings to this theme.", starter:"Opening this theme from the readings, I'd argue " },
-  { id:"sg2", icon:"🔗", label:"Import another theme", text:"How could an idea that already appears elsewhere on the map extend responsibly into this gap?", starter:"Building on another theme on the map, this gap matters because " },
-  { id:"sg3", icon:"⚖️", label:"Name a design decision", text:"What instructional, technical, or governance choice would you need to make first to address this gap fairly?", starter:"One decision we'd need to make carefully here is " },
-];
+/** Gap-specific scaffolding: uses the selected gap’s labels + what’s live elsewhere on the map. */
+function studyGapScaffolds(gap, clustersList) {
+  const nm = gap.shortLabel || String(gap.label || "").replace(/\n/g, " ").trim() || gap.id;
+  const longLabel = String(gap.label || gap.shortLabel || "").replace(/\n/g, " · ");
+  const activeElsewhere = clustersList.filter(c => !c.isGap && (c.postIds?.length > 0));
+  const names = activeElsewhere.slice(0, 3).map(c => c.shortLabel).filter(Boolean);
+  const bridgeHint = names.length ? names.join(", ") : "other themes once they have posts";
+
+  return [
+    {
+      id: `gap-${gap.id}-anchor`,
+      icon: "🔍",
+      label: `Anchor “${nm}” for Week 12`,
+      text: `You selected this **gap** (${nm}). No one has posted here yet—your job is to say what belongs in this theme and why it matters for ethics, data, teaching, or policy in this unit.`,
+      bullets: [
+        `Name **one** reading idea or week-12 requirement that clearly belongs under **${nm}**.`,
+        `Contrast with a theme that already has posts (${bridgeHint})—what’s missing here?`,
+        `Draft 2–3 sentences you could paste as your **first post** in this gap.`,
+      ],
+      threadHint: `Gap: **${nm}** · ${longLabel ? `Map label: ${longLabel}` : "Use the map to see neighboring themes."}`,
+      starter: `For "${nm}", the discussion still needs `,
+    },
+    {
+      id: `gap-${gap.id}-bridge`,
+      icon: "🔗",
+      label: `Bridge into “${nm}”`,
+      text: `Pull language or logic from a busier part of the map and show how it creates an obligation (or opportunity) specific to **${nm}**.`,
+      bullets: [
+        `Pick one post or theme you’re borrowing from (name it).`,
+        `Explain the **mechanism**: how does that idea travel into ${nm}?`,
+        `Name one risk if nobody fills this gap.`,
+      ],
+      threadHint: `Weigh **${nm}** against active threads: ${bridgeHint}.`,
+      starter: `Connecting ${nm} to what others already argued, this gap matters because `,
+    },
+    {
+      id: `gap-${gap.id}-decide`,
+      icon: "⚖️",
+      label: `Decide & defend (in “${nm}”)`,
+      text: `Treat this gap like a design brief: what **first decision** (instructional, technical, or governance) must a practitioner make to work fairly in **${nm}**?`,
+      bullets: [
+        `State the decision in one sentence (who decides, about what).`,
+        `Give **one** stakeholder who gains and **one** who might lose.`,
+        `Propose a guardrail (rubric, policy, or habit) that keeps the decision accountable.`,
+      ],
+      threadHint: `Scaffolding targets **${nm}** — not a generic prompt; tie claims to this gap’s role on the map.`,
+      starter: `The first decision we’d need to make carefully for ${nm} is `,
+    },
+  ];
+}
+
+function enrichStudyThemeScaffolds(prompts, cluster, targetPost, postsList) {
+  const clusterPosts = postsList.filter(p => cluster.postIds?.includes(p.id));
+  const first = clusterPosts[0];
+  const excerpt = first ? extractPostText(first.text) : "";
+  const snip = excerpt ? (excerpt.length > 130 ? `${excerpt.slice(0, 130)}…` : excerpt) : "";
+  const threadHint = clusterPosts.length
+    ? `**${cluster.shortLabel}** · ${clusterPosts.length} post(s) on the map.${snip ? ` Thread snapshot: “${snip}”` : ""}`
+    : `**${cluster.shortLabel}** · Use classmates’ posts in this theme as evidence.`;
+
+  return prompts.map((p, idx) => ({
+    ...p,
+    bullets: p.bullets || [
+      snip
+        ? `Start from the thread snapshot—what does it imply for **${cluster.shortLabel}** next?`
+        : `State one claim you want to defend about **${cluster.shortLabel}** in this unit.`,
+      targetPost
+        ? `Engage **${targetPost.authorName}**’s line of argument (extend, complicate, or offer a counter-case).`
+        : "Name one concrete example (readings or experience) that sharpens the theme.",
+      "End with one takeaway you could paste into Canvas (2–3 sentences).",
+    ],
+    threadHint: p.threadHint ?? (idx === 0 ? threadHint : undefined),
+  }));
+}
+
+/** Renders `**bold**` segments in scaffold copy (no full markdown). */
+function renderInlineBold(str) {
+  if (str == null || str === "") return null;
+  const parts = String(str).split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    const m = /^\*\*([^*]+)\*\*$/.exec(part);
+    if (m) return <strong key={i} style={{ fontWeight: 600, color: "inherit" }}>{m[1]}</strong>;
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function stripBoldMarkers(s) {
+  return String(s).replace(/\*\*([^*]+)\*\*/g, "$1");
+}
+
+function fullScaffoldPlainText(p) {
+  const lines = [];
+  if (p.text) lines.push(stripBoldMarkers(p.text));
+  if (p.threadHint) lines.push(stripBoldMarkers(p.threadHint));
+  if (p.bullets?.length) {
+    lines.push("Steps:");
+    p.bullets.forEach((b, i) => lines.push(`${i + 1}. ${stripBoldMarkers(b)}`));
+  }
+  if (p.starter) lines.push(`Sentence starter: ${p.starter}`);
+  return lines.join("\n");
+}
 
 function studyPromptsForTheme(cluster, targetPost, postsList, clustersList) {
   const name = targetPost?.authorName || "this classmate";
@@ -415,7 +510,12 @@ function getContextualPrompts(targetPost, clustersList = INITIAL_CLUSTERS, posts
   const cluster = clustersList.find(c => c.id === targetPost.clusterId);
   if (!cluster) return studyLayout ? STUDY_NEUTRAL_PROMPTS : EPISTEMIC_PROMPTS;
   if (studyLayout && STUDY_CLUSTER_ID_SET.has(cluster.id)) {
-    return studyPromptsForTheme(cluster, targetPost, postsList, clustersList);
+    return enrichStudyThemeScaffolds(
+      studyPromptsForTheme(cluster, targetPost, postsList, clustersList),
+      cluster,
+      targetPost,
+      postsList,
+    );
   }
   const name = targetPost.authorName;
   const sofia = postsList.find(p => p.authorId === "sofia");
@@ -464,8 +564,6 @@ function resetPostIdCounterFromPosts(postList) {
   }
   postIdCounter = max + 1;
 }
-
-const NOTES_STORAGE_KEY = "dm_fullview_notes";
 
 function clusterIdsForPost(post) {
   if (!post) return [];
@@ -1054,12 +1152,11 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
   const prevSelectedCluster = useRef(null);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [hoveredCluster,  setHoveredCluster]  = useState(null);
-  const [noteText,        setNoteText]        = useState("");
-  const [notesSaved,      setNotesSaved]      = useState(false);
   const [themesOpen,      setThemesOpen]      = useState(true);
   const [workspaceOpen,   setWorkspaceOpen]   = useState(true);
   const [activePrompt,    setActivePrompt]    = useState(null);
-  const [copied,          setCopied]          = useState(false);
+  /** `"starter:${promptId}"` | `"scaffold:${promptId}"` | null — which copy action to show ✓ on */
+  const [copyFlash,       setCopyFlash]       = useState(null);
   const [zoom,            setZoom]            = useState(1);
   const [pan,             setPan]             = useState({ x:0, y:0 });
   const [isDragging,      setIsDragging]      = useState(false);
@@ -1095,13 +1192,6 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
       sessionLog.logEvent("cluster_cleared", { clusterId: prev });
     }
   }, [selectedCluster, clusters, sessionLog]);
-
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem(NOTES_STORAGE_KEY);
-      if (s != null) setNoteText(s);
-    } catch { /* ignore */ }
-  }, []);
 
   // Apple system colors
   const A = {
@@ -1144,7 +1234,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
   const isStudyUI  = isStudyClusterLayout(clusters);
   const workspacePrompts = (() => {
     if (!activeCl) return isStudyUI ? STUDY_NEUTRAL_PROMPTS : EPISTEMIC_PROMPTS;
-    if (activeCl.isGap) return isStudyUI ? STUDY_GAP_PROMPTS : GAP_PROMPTS;
+    if (activeCl.isGap) return isStudyUI ? studyGapScaffolds(activeCl, clusters) : GAP_PROMPTS;
     return getContextualPrompts(
       posts.find(p => activeCl.postIds.includes(p.id)) || null,
       clusters,
@@ -1165,22 +1255,18 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
         { n: clusters.filter(c => c.consensusWarning).length, label: "Consensus risks", color: A.red, hint: "Clusters where the mock data flags similar views and missing counter-perspectives." },
       ];
 
-  const saveNotesToStorage = () => {
-    try {
-      localStorage.setItem(NOTES_STORAGE_KEY, noteText);
-      setNotesSaved(true);
-      setTimeout(() => setNotesSaved(false), 2200);
-      sessionLog?.logEvent?.("ui_click", { controlId: "fullview.notes.save", textLength: (noteText || "").length });
-      sessionLog?.addNote?.(noteText);
-    } catch { /* ignore */ }
-  };
-
-  const handleCopy = (text) => {
+  const handleCopyWritingPart = (p, part) => {
+    const text = part === "starter" ? p.starter : fullScaffoldPlainText(p);
     navigator.clipboard?.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-    sessionLog?.logEvent?.("ui_click", { controlId: "fullview.copy_starter", starterLength: text != null ? String(text).length : 0 });
-    sessionLog?.logEvent?.("prompt_inserted", { starterLength: text != null ? String(text).length : 0 });
+    const key = `${part}:${p.id}`;
+    setCopyFlash(key);
+    setTimeout(() => setCopyFlash((k) => (k === key ? null : k)), 1800);
+    sessionLog?.logEvent?.("ui_click", {
+      controlId: part === "starter" ? "fullview.copy_starter" : "fullview.copy_scaffold",
+      promptId: p.id,
+      textLength: text != null ? String(text).length : 0,
+    });
+    if (part === "starter") sessionLog?.logEvent?.("prompt_inserted", { starterLength: text != null ? String(text).length : 0 });
   };
 
   return (
@@ -1495,11 +1581,15 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
               <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:4 }}>Writing Angles</div>
               <div style={{ fontSize:"9px", color:A.label4, marginBottom:8, lineHeight:1.4 }}>
                 {isStudyUI
-                  ? "Scaffolds match the Week 12 study themes and classmates' posts. Not generated by AI; refresh when you change themes."
+                  ? (activeCl
+                    ? `Angles scaffold your next post from the selected ${activeCl.isGap ? "gap" : "theme"} (“${activeCl.shortLabel}”). Not AI-generated.`
+                    : "Select a theme or gap on the map; angles use that choice and classmates’ posts where available.")
                   : "Prototype: static prompts per theme (not generated by AI). Items update when you select a different theme."}
               </div>
               {workspacePrompts.map(p => {
                 const isAct = activePrompt?.id === p.id;
+                const starterDone = copyFlash === `starter:${p.id}`;
+                const scaffoldDone = copyFlash === `scaffold:${p.id}`;
                 const iconSvgs = {
                   "🔍": <svg width="12" height="12" fill="none"><path d="M2 6h8M6 2v8" stroke={A.blue} strokeWidth="1.5" strokeLinecap="round"/></svg>,
                   "⚖️": <svg width="12" height="12" fill="none"><path d="M1 6h4m6 0H7m0-3 3 3-3 3M5 3 2 6l3 3" stroke={A.blue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -1516,7 +1606,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                         setActivePrompt(next);
                       }}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const next = isAct ? null : p; sessionLog?.logEvent?.("ui_click", { controlId: "fullview.writing_angle.toggle", promptId: p.id, expanded: Boolean(next), via: "keyboard" }); setActivePrompt(next); } }}
-                      style={{ display:"flex", alignItems:"center", padding:"7px 9px", gap:8, background:A.panel, borderRadius:"8px", marginBottom:5, cursor:"pointer", border:`0.5px solid ${A.separator}`, transition:"background 0.12s" }}
+                      style={{ display:"flex", alignItems:"center", padding:"7px 9px", gap:8, background:A.panel, borderRadius:"8px", marginBottom:5, cursor:"pointer", border:isAct?`1.5px solid ${A.blue}`:`0.5px solid ${A.separator}`, transition:"background 0.12s" }}
                       onMouseEnter={e=>e.currentTarget.style.background="#FAFAFA"}
                       onMouseLeave={e=>e.currentTarget.style.background=A.panel}>
                       <div style={{ width:22, height:22, borderRadius:"6px", background:`rgba(0,122,255,0.1)`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1526,15 +1616,34 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                       <span style={{ fontSize:"9px", color:A.label3 }}>{isAct?"▾":"›"}</span>
                     </div>
                     {isAct && (
-                      <div style={{ background:A.panel, borderRadius:"8px", padding:"10px 11px", marginBottom:5, border:`0.5px solid ${A.separator}` }}>
-                        <div style={{ fontSize:"11px", color:A.label3, lineHeight:1.5, marginBottom:9 }}>{p.text}</div>
+                      <div style={{ background:A.panel, borderRadius:"8px", padding:"10px 11px", marginBottom:5, border:`1.5px solid ${A.blue}` }}>
+                        {p.threadHint && (
+                          <div style={{ fontSize:"10px", color:A.label2, lineHeight:1.45, marginBottom:8, padding:"6px 8px", background:"rgba(0,122,255,0.06)", borderRadius:"6px", border:`0.5px solid rgba(0,122,255,0.2)` }}>
+                            {renderInlineBold(p.threadHint)}
+                          </div>
+                        )}
+                        <div style={{ fontSize:"11px", color:A.label3, lineHeight:1.5, marginBottom:9 }}>{renderInlineBold(p.text)}</div>
+                        {p.bullets?.length > 0 && (
+                          <ul style={{ margin:"0 0 10px 16px", padding:0, fontSize:"10.5px", color:A.label2, lineHeight:1.45 }}>
+                            {p.bullets.map((b, bi) => (
+                              <li key={bi} style={{ marginBottom:4 }}>{renderInlineBold(b)}</li>
+                            ))}
+                          </ul>
+                        )}
+                        <div style={{ fontSize:"9.5px", fontWeight:"600", color:A.label3, marginBottom:4, letterSpacing:"0.02em" }}>Sentence starter</div>
                         <div style={{ background:A.sidebar, borderRadius:"6px", padding:"8px 10px", fontSize:"11px", color:A.label2, fontStyle:"italic", lineHeight:1.5, marginBottom:8, border:`0.5px solid ${A.separator}`, userSelect:"text" }}>
-                          "{p.starter}"
+                          “{p.starter}”
                         </div>
-                        <button onClick={e=>{e.stopPropagation();handleCopy(p.starter);}}
-                          style={{ fontSize:"11px", color:copied?"#186430":A.blue, background:copied?"rgba(48,209,88,0.12)":"rgba(0,122,255,0.09)", border:"none", borderRadius:"6px", padding:"4px 11px", cursor:"pointer", fontWeight:"500", transition:"all 0.2s" }}>
-                          {copied?"✓ Copied":"Copy starter"}
-                        </button>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                          <button type="button" onClick={e=>{e.stopPropagation();handleCopyWritingPart(p,"starter");}}
+                            style={{ fontSize:"11px", color:starterDone?"#186430":A.blue, background:starterDone?"rgba(48,209,88,0.12)":"rgba(0,122,255,0.09)", border:"none", borderRadius:"6px", padding:"4px 11px", cursor:"pointer", fontWeight:"500", transition:"all 0.2s" }}>
+                            {starterDone?"✓ Copied":"Copy sentence starter"}
+                          </button>
+                          <button type="button" onClick={e=>{e.stopPropagation();handleCopyWritingPart(p,"scaffold");}}
+                            style={{ fontSize:"11px", color:scaffoldDone?"#186430":A.blue, background:scaffoldDone?"rgba(48,209,88,0.12)":"rgba(0,122,255,0.06)", border:`0.5px solid ${A.separator}`, borderRadius:"6px", padding:"4px 11px", cursor:"pointer", fontWeight:"500", transition:"all 0.2s" }}>
+                            {scaffoldDone?"✓ Copied":"Copy full scaffold"}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1542,17 +1651,19 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
               })}
             </div>
 
-            {/* Notes */}
-            <div style={{ padding:"11px 12px" }}>
-              <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:8 }}>Notes</div>
-              <textarea
-                value={noteText} onChange={e=>setNoteText(e.target.value)}
-                placeholder="Jot down observations before you write…"
-                style={{ width:"100%", background:A.panel, border:`0.5px solid ${A.separator}`, borderRadius:"8px", padding:"8px 9px", fontSize:"11px", color:A.label, fontFamily:"-apple-system,Lato,sans-serif", lineHeight:1.5, resize:"vertical", outline:"none", minHeight:56, boxSizing:"border-box" }}
-              />
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
-                <button type="button" onClick={saveNotesToStorage} style={{ fontSize:"11px", color:A.blue, background:"rgba(0,122,255,0.1)", border:`0.5px solid rgba(0,122,255,0.35)`, borderRadius:"6px", padding:"5px 12px", cursor:"pointer", fontWeight:"600" }}>Save</button>
-                <span style={{ fontSize:"10px", color:notesSaved?A.green:A.label4 }}>{notesSaved?"Saved on this browser":"Saved only in this browser after you click Save"}</span>
+            {/* Instructor note */}
+            <div style={{ padding:"11px 12px", borderTop:`0.5px solid ${A.separator}` }}>
+              <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:6 }}>Instructor note</div>
+              <div style={{ background:"linear-gradient(180deg, rgba(175,82,222,0.06) 0%, rgba(0,122,255,0.04) 100%)", border:`0.5px solid ${A.separator}`, borderRadius:"10px", padding:"10px 11px" }}>
+                <p style={{ margin:"0 0 8px", fontSize:"12px", fontWeight:"600", color:A.label, lineHeight:1.45 }}>
+                  What impacts do you see with artificial intelligence and data storytelling?
+                </p>
+                <p style={{ margin:"0 0 8px", fontSize:"11px", color:A.label2, lineHeight:1.5 }}>
+                  There are no right or wrong answers. AI-assisted storytelling with data is still taking shape—explore openly.
+                </p>
+                <p style={{ margin:0, fontSize:"10.5px", color:A.label3, lineHeight:1.5 }}>
+                  How might data storytelling change or expand with AI? Do you think that is a good direction—or not? Do you foresee AI being able to connect with the emotions of an audience? Use the map to anchor your ideas in this week’s themes and your classmates’ posts where it helps.
+                </p>
               </div>
             </div>
           </div>
