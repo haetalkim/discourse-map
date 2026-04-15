@@ -1,0 +1,211 @@
+/* DiscourseMapGuide.css */
+.notes-container * {
+    box-sizing: border-box;
+  }
+  
+  .notes-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: #F5F5F7; 
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1D1D1F;
+    overflow: hidden; 
+  }
+  
+  .notes-sidebar {
+    width: 280px;
+    flex-shrink: 0; /* This prevents the sidebar from crashing/squishing! */
+    background-color: rgba(236, 236, 236, 0.8);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid #D2D2D7;
+    padding: 24px 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .notes-sidebar h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    color: #86868B;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-left: 12px;
+  }
+  
+  .notes-sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .notes-sidebar li {
+    margin-bottom: 4px;
+  }
+  
+  .notes-sidebar a {
+    display: block;
+    padding: 8px 12px;
+    color: #1D1D1F;
+    text-decoration: none;
+    font-size: 14px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+  }
+  
+  .notes-sidebar a:hover {
+    background-color: #DFDFE0;
+  }
+  
+  .notes-main-wrapper {
+    flex: 1;
+    padding: 24px 40px;
+    overflow-y: auto;
+    /* Removed display: flex to fix the scroll clipping bug! */
+  }
+  
+  .notes-paper {
+    background-color: #FFFFFF;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0,0,0,0.02);
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto; /* This centers the paper perfectly */
+    padding: 50px 60px;
+    min-height: calc(100vh - 48px); /* Ensures it fills the screen even if content is short */
+  }
+  
+  /* Adjust the student script header to align with the new icons */
+  .student-script h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #B99000;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .notes-paper h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 1rem;
+  }
+  
+  .notes-paper h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #E5E5EA;
+  }
+  
+  .notes-paper p, .notes-paper ul {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: #333336;
+    margin-bottom: 1.5rem;
+  }
+  
+  .notes-paper ul {
+    padding-left: 1.5rem;
+  }
+  
+  .notes-paper li {
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Callout for Educator Intro */
+  .educator-intro {
+    background-color: #F5F5F7;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 2rem;
+  }
+  
+  .educator-intro p {
+    margin-bottom: 0;
+    font-size: 1rem;
+  }
+  
+  /* Student Explanation Scaffolding */
+  .student-script {
+    background-color: #FFF9E6; 
+    border-left: 4px solid #F4D03F;
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 24px 0;
+  }
+  
+  .student-script h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #B99000;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  
+  .student-script p {
+    font-size: 0.95rem;
+    margin-bottom: 0;
+    color: #4A3E10;
+    font-style: italic;
+  }
+  
+  /* Images */
+  .notes-figure {
+    margin: 2rem 0;
+    text-align: center;
+  }
+  
+  .notes-figure img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #E5E5EA;
+  }
+  
+  .notes-figcaption {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #86868B;
+  }
+
+  /* --- PRINT STYLES FOR PDF EXPORT --- */
+@media print {
+  .notes-container {
+    height: auto;
+    background-color: white;
+    display: block;
+    overflow: visible;
+  }
+  .notes-sidebar {
+    display: none; /* Hide the sidebar on paper */
+  }
+  .notes-main-wrapper {
+    padding: 0;
+    display: block;
+    overflow: visible;
+  }
+  .notes-paper {
+    box-shadow: none;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+  }
+  .notes-figure img {
+    max-width: 90%; /* Keep images from touching the edges */
+  }
+  /* Hide any buttons so they don't show up on the PDF */
+  button {
+    display: none !important;
+  }
+  /* Ensure page breaks don't cut images in half */
+  section {
+    page-break-inside: avoid;
+  }
+}

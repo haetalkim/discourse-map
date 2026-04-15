@@ -1,0 +1,175 @@
+{
+  "discussionPrompt": {
+    "title": "Week 11 - Algorithmic Bias and Fairness in AI-Mediated Learning Environments",
+    "body": "A minimum of 2 posts per week is required. Your initial post should: (1) draw on at least one concept from this week's readings, (2) interpret how it applies to a specific educational context, and (3) connect your thinking to a classmate's post in your reply. Please post by Thursday midnight and reply by Saturday 9am.",
+    "date": "Posted Mar 24, 2025 9:00am"
+  },
+  "posts": [
+    {
+      "id": "p1",
+      "authorId": "jennifer",
+      "authorName": "Jennifer H.",
+      "initials": "H",
+      "date": "Mar 25, 2025 7:30pm",
+      "lastReply": "Mar 27, 2025 11:00am",
+      "replyCount": 2,
+      "text": "The readings on algorithmic bias hit close to home. Automated essay scoring systems trained primarily on native English speakers' writing will systematically undervalue the contributions of multilingual learners — not because those students write poorly, but because the training data encodes a narrow definition of 'good writing.' This isn't a neutral technical failure; it's a reproduction of existing inequities through a new medium. Noble's concept of algorithmic oppression helps name what's happening: the system appears objective while embedding subjective value judgments invisibly.",
+      "clusterId": "algorithmic-bias",
+      "parentId": null
+    },
+    {
+      "id": "p2",
+      "authorId": "stella",
+      "authorName": "Stella K.",
+      "initials": "SK",
+      "date": "Mar 25, 2025 10:45pm",
+      "lastReply": "Mar 27, 2025 9:30am",
+      "replyCount": 2,
+      "text": "I want to complicate the framing slightly. When we say AI systems are 'biased,' we risk implying that bias-free AI is possible if we just fix the data. But Eubanks' work suggests the problem runs deeper: automated systems in education often replicate the same gatekeeping logic that human systems already use — just faster and at scale. The question isn't only whether the algorithm is fair, but whether the underlying sorting function itself should exist. Who decided that student performance should be ranked and sorted in this way at all?",
+      "clusterId": "algorithmic-bias",
+      "parentId": null
+    },
+    {
+      "id": "p3",
+      "authorId": "liz",
+      "authorName": "Liz C.",
+      "initials": "LC",
+      "date": "Mar 26, 2025 11:00am",
+      "lastReply": "Mar 27, 2025 2:00pm",
+      "replyCount": 1,
+      "text": "I'm thinking about this from a learning design perspective. If an adaptive learning system steers students toward 'remedial' content based on early performance signals, it can lock them into a lower-trajectory pathway before they've had a chance to demonstrate what they actually know. Vygotsky's zone of proximal development is instructive here: good scaffolding should expand what learners can do, not categorize them based on what they can't do yet. AI systems that optimize for efficient content delivery may actively undermine this by treating learners as static rather than developing.",
+      "clusterId": "adaptive-learning-systems",
+      "parentId": null
+    },
+    {
+      "id": "p4",
+      "authorId": "addison",
+      "authorName": "Addison R.",
+      "initials": "AR",
+      "date": "Mar 26, 2025 4:00pm",
+      "lastReply": "Mar 27, 2025 10:30am",
+      "replyCount": 2,
+      "text": "What strikes me about both Jennifer's and Stella's points is that transparency doesn't solve the problem. Even if a student knows an AI scored their essay, they can't contest it, understand the criteria, or appeal to a reasoning process. This connects to what the readings said about explainability — but I'd push further: explainability for whom? A technical explanation of feature weights means nothing to a student who just wants to know why their work was marked down. Accountability requires not just transparency but interpretability at the level of the affected person.",
+      "clusterId": "transparency-accountability",
+      "parentId": null
+    },
+    {
+      "id": "p5",
+      "authorId": "matty",
+      "authorName": "Matty H.",
+      "initials": "MH",
+      "date": "Mar 27, 2025 8:00am",
+      "lastReply": "Mar 27, 2025 3:00pm",
+      "replyCount": 1,
+      "text": "I keep coming back to the teacher's role in all of this. The readings frame AI mostly as a systems problem, but in practice, a teacher who understands a student's context — their linguistic background, their learning trajectory, their circumstances — can override or reframe what an automated system produces. The risk I see is deskilling: if teachers increasingly defer to AI recommendations, they may lose the professional judgment that makes those overrides possible. We might be automating away the very capacity for contextual, relational knowing that makes good teaching possible.",
+      "clusterId": "teacher-role-ai",
+      "parentId": null
+    },
+    {
+      "id": "p6",
+      "authorId": "jennifer",
+      "authorName": "Jennifer H.",
+      "initials": "H",
+      "date": "Mar 27, 2025 11:00am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Stella, your point about the sorting function itself is the one I keep thinking about. It reframes the whole problem — instead of asking 'is this AI fair?' we should ask 'what is this AI for, and who benefits from that function existing?' That shifts the locus of critique from technical to political. It also connects to Matty's worry about deskilling: if teachers are reduced to validating AI outputs, the question of whether those outputs serve students becomes harder to ask from inside the system.",
+      "clusterId": "algorithmic-bias",
+      "clusterIds": ["algorithmic-bias", "teacher-role-ai"],
+      "parentId": "p2"
+    },
+    {
+      "id": "p7",
+      "authorId": "stella",
+      "authorName": "Stella K.",
+      "initials": "SK",
+      "date": "Mar 27, 2025 9:30am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Liz, the ZPD framing is really productive here. I'd extend it: not only does the system treat learners as static, it may actively create the condition it claims to be measuring. If a student is repeatedly routed to remedial content, their engagement drops, their performance confirms the initial classification, and the system's prediction becomes self-fulfilling. This is a feedback loop that operates below the level of individual bias — it's structural, and it's invisible to everyone inside it, including the teacher.",
+      "clusterId": "adaptive-learning-systems",
+      "clusterIds": ["adaptive-learning-systems", "algorithmic-bias"],
+      "parentId": "p3"
+    },
+    {
+      "id": "p8",
+      "authorId": "liz",
+      "authorName": "Liz C.",
+      "initials": "LC",
+      "date": "Mar 27, 2025 2:00pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Addison, interpretability at the level of the affected person — that's the framing I was missing. I'd been thinking about explainability as a technical feature, but you're right that it's a relational one. A student needs to be able to understand the evaluation in terms of their own work, not in terms of the model's internal logic. This actually connects to what Matty said about teacher judgment: the teacher can translate between the system's outputs and the student's understanding in a way the system itself cannot.",
+      "clusterId": "transparency-accountability",
+      "clusterIds": ["transparency-accountability", "teacher-role-ai"],
+      "parentId": "p4"
+    },
+    {
+      "id": "p9",
+      "authorId": "addison",
+      "authorName": "Addison R.",
+      "initials": "AR",
+      "date": "Mar 27, 2025 10:30am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Matty, the deskilling argument is one I find compelling but also want to push on. Is the risk that teachers lose judgment, or that institutions stop valuing it? Those are different problems with different solutions. If the issue is institutional, then better AI tools won't fix it — you'd need policy changes that protect the space for teacher professional judgment. But if the issue is cognitive, then design interventions that keep teachers in the loop might actually help. I'm not sure which diagnosis is right, and I think it matters.",
+      "clusterId": "teacher-role-ai",
+      "parentId": "p5"
+    },
+    {
+      "id": "p10",
+      "authorId": "matty",
+      "authorName": "Matty H.",
+      "initials": "MH",
+      "date": "Mar 27, 2025 3:00pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Addison, I think you've identified exactly the fork in the road I was avoiding. My instinct is that both are happening simultaneously and reinforcing each other — institutional devaluation of teacher judgment creates conditions where cognitive deskilling becomes more likely, and vice versa. But you're right that collapsing them makes it harder to design solutions. One question this opens: is there an AI design approach that could actively work against deskilling — that builds teacher judgment rather than substituting for it? That feels like the gap no one has addressed yet in this discussion.",
+      "clusterId": "teacher-role-ai",
+      "clusterIds": ["teacher-role-ai", "adaptive-learning-systems"],
+      "parentId": "p9"
+    }
+  ],
+  "clusters": [
+    {
+      "id": "algorithmic-bias",
+      "label": "Algorithmic Bias\n& Inequity",
+      "shortLabel": "Algorithmic Bias & Inequity",
+      "x": 40, "y": 30, "size": 44,
+      "postIds": ["p1", "p2", "p6", "p7"],
+      "isGap": false
+    },
+    {
+      "id": "adaptive-learning-systems",
+      "label": "Adaptive Systems\n& Learner Trajectories",
+      "shortLabel": "Adaptive Systems & Learner Trajectories",
+      "x": 72, "y": 25, "size": 36,
+      "postIds": ["p3", "p7", "p10"],
+      "isGap": false
+    },
+    {
+      "id": "transparency-accountability",
+      "label": "Transparency &\nAccountability",
+      "shortLabel": "Transparency & Accountability",
+      "x": 70, "y": 65, "size": 32,
+      "postIds": ["p4", "p8"],
+      "isGap": false
+    },
+    {
+      "id": "teacher-role-ai",
+      "label": "Teacher Role\nin AI Contexts",
+      "shortLabel": "Teacher Role in AI Contexts",
+      "x": 25, "y": 65, "size": 36,
+      "postIds": ["p5", "p6", "p8", "p9", "p10"],
+      "isGap": false
+    },
+    {
+      "id": "student-agency",
+      "label": "Student Agency\n& Resistance",
+      "shortLabel": "Student Agency & Resistance",
+      "x": 15, "y": 30, "size": 30,
+      "postIds": [],
+      "isGap": true
+    }
+  ]
+}

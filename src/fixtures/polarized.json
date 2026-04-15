@@ -1,0 +1,174 @@
+{
+  "discussionPrompt": {
+    "title": "Week 13 - AI Tutors and the Future of Teaching: Complement or Replacement?",
+    "body": "A minimum of 2 posts per week is required. Your initial post should: (1) draw on at least one concept from this week's readings, (2) interpret how it applies to a specific educational context, and (3) connect your thinking to a classmate's post in your reply. Please post by Thursday midnight and reply by Saturday 9am.",
+    "date": "Posted Apr 7, 2025 9:00am"
+  },
+  "posts": [
+    {
+      "id": "p1",
+      "authorId": "jennifer",
+      "authorName": "Jennifer H.",
+      "initials": "H",
+      "date": "Apr 8, 2025 6:00pm",
+      "lastReply": "Apr 10, 2025 10:00am",
+      "replyCount": 2,
+      "text": "I think the 'complement vs. replacement' framing is already conceding too much. The readings on intelligent tutoring systems show that AI tutors can now outperform average human tutors on narrow task completion metrics. But education isn't about task completion — it's about identity formation, relational trust, and the cultivation of dispositions toward learning. No AI system can do that because those outcomes emerge from authentic human relationship. The question isn't whether AI can teach content efficiently; it's whether efficient content delivery is actually what education is for.",
+      "clusterId": "human-relation-irreplaceable",
+      "parentId": null
+    },
+    {
+      "id": "p2",
+      "authorId": "stella",
+      "authorName": "Stella K.",
+      "initials": "SK",
+      "date": "Apr 8, 2025 9:30pm",
+      "lastReply": "Apr 10, 2025 9:00am",
+      "replyCount": 2,
+      "text": "The readings present a more nuanced picture than the replacement narrative suggests. AI tutors offer something human teachers structurally cannot: infinite patience, consistent availability, and immediate feedback at scale. In under-resourced schools where a single teacher manages 40+ students, an AI tutor isn't replacing a human relationship — it's filling a vacuum where no relationship existed anyway. We need to be careful not to defend an idealized version of human teaching that isn't available to most students.",
+      "clusterId": "ai-tutor-benefits",
+      "parentId": null
+    },
+    {
+      "id": "p3",
+      "authorId": "liz",
+      "authorName": "Liz C.",
+      "initials": "LC",
+      "date": "Apr 9, 2025 10:00am",
+      "lastReply": "Apr 10, 2025 11:00am",
+      "replyCount": 1,
+      "text": "Jennifer's point about identity formation is exactly right, and I'd add: teaching is a moral practice, not just a technical one. When a teacher responds to a student who is struggling, they're making a judgment about that student's potential, their circumstances, their dignity. That judgment is embedded in a relationship over time. An AI system optimizes for performance signals — it has no stake in the student's future, no grief if they fail, no investment in who they become. That asymmetry is ethically significant, not just pedagogically.",
+      "clusterId": "human-relation-irreplaceable",
+      "parentId": null
+    },
+    {
+      "id": "p4",
+      "authorId": "addison",
+      "authorName": "Addison R.",
+      "initials": "AR",
+      "date": "Apr 9, 2025 3:00pm",
+      "lastReply": "Apr 10, 2025 8:30am",
+      "replyCount": 2,
+      "text": "I want to push back on the idealization happening in some of these posts. Human teachers are not uniformly good at building relationships or recognizing student potential — research on implicit bias in grading and referral to special education shows that human judgment is often systematically worse for students of color and students with disabilities. An AI system with well-designed fairness constraints might actually produce more equitable outcomes than a well-meaning but biased human. The 'human relationship' argument needs to grapple with which humans we're talking about.",
+      "clusterId": "ai-tutor-benefits",
+      "parentId": null
+    },
+    {
+      "id": "p5",
+      "authorId": "matty",
+      "authorName": "Matty H.",
+      "initials": "MH",
+      "date": "Apr 10, 2025 7:45am",
+      "lastReply": "Apr 10, 2025 12:00pm",
+      "replyCount": 1,
+      "text": "Both camps in this discussion are treating 'the teacher' as an abstraction. In practice, what teachers do that AI cannot is read the room — they pick up on emotional states, social dynamics, who hasn't spoken in a while, which student looks like they're about to cry. This is not mystical; it's embodied social intelligence developed over years of practice. AI systems, however sophisticated their NLP, are processing text or audio signals — not inhabiting a shared social world with the students. That gap is not a technical limitation waiting to be solved; it's constitutive of what AI systems are.",
+      "clusterId": "human-relation-irreplaceable",
+      "parentId": null
+    },
+    {
+      "id": "p6",
+      "authorId": "jennifer",
+      "authorName": "Jennifer H.",
+      "initials": "H",
+      "date": "Apr 10, 2025 10:00am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Liz, the moral practice framing is the one I'd want to anchor the whole discussion to. And Matty's point about embodied social intelligence extends it: the teacher's responsiveness isn't just relational, it's perceptual in ways that text-based AI simply cannot replicate. A student who is about to disengage entirely doesn't announce it in their next chat message — a human teacher sees it. These aren't arguments against AI as a supplement; they're arguments against treating AI output as equivalent to teaching.",
+      "clusterId": "human-relation-irreplaceable",
+      "parentId": "p3"
+    },
+    {
+      "id": "p7",
+      "authorId": "stella",
+      "authorName": "Stella K.",
+      "initials": "SK",
+      "date": "Apr 10, 2025 9:00am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Addison, the bias research point is the one I think gets most underweighted in these conversations. The 'authentic human relationship' that Jennifer and Liz are defending has historically been most available to students who already had social capital — who looked like the teacher expected a 'good student' to look. For students who don't fit that image, the human relationship has often meant lower expectations, not higher ones. I'm not arguing AI is better; I'm arguing that 'human' is not automatically a quality signal.",
+      "clusterId": "ai-tutor-benefits",
+      "parentId": "p4"
+    },
+    {
+      "id": "p8",
+      "authorId": "liz",
+      "authorName": "Liz C.",
+      "initials": "LC",
+      "date": "Apr 10, 2025 11:00am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Jennifer, yes — and I think the supplement framing is where I actually land. The question is what AI supplements versus what it displaces. Supplementing a teacher's ability to give every student immediate feedback on a draft? Good. Replacing the teacher's role in knowing a student over time, adapting to who they are becoming, advocating for them? That displacement would be a serious loss, and I worry the economic logic of scaling makes it almost inevitable.",
+      "clusterId": "human-relation-irreplaceable",
+      "parentId": "p6"
+    },
+    {
+      "id": "p9",
+      "authorId": "addison",
+      "authorName": "Addison R.",
+      "initials": "AR",
+      "date": "Apr 10, 2025 8:30am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Matty, I hear the embodied social intelligence argument and I think it's real. But I'd separate two claims: (1) current AI cannot do this, and (2) AI in principle cannot do this. The first is empirically true. The second is a stronger philosophical claim. My concern with the 'constitutive' framing is that it forecloses futures we haven't seen yet. I'd rather hold the question open and focus on what we need AI to do now — which is support learning in contexts where the ideal human teacher simply isn't available.",
+      "clusterId": "ai-tutor-benefits",
+      "parentId": "p5"
+    },
+    {
+      "id": "p10",
+      "authorId": "matty",
+      "authorName": "Matty H.",
+      "initials": "MH",
+      "date": "Apr 10, 2025 12:00pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Addison, the distinction between 'currently cannot' and 'in principle cannot' is fair, and I don't want to be dogmatic about it. But I notice that the 'in principle possible' argument tends to function rhetorically to lower resistance to current deployments — 'it'll get there, so let's use it now.' I'm more interested in the question Liz raised: what does displacement look like when it happens incrementally and economically rather than all at once? By the time we have evidence that the human element has been lost, it may already be very difficult to recover.",
+      "clusterId": "human-relation-irreplaceable",
+      "clusterIds": ["human-relation-irreplaceable", "ai-tutor-benefits"],
+      "parentId": "p9"
+    }
+  ],
+  "clusters": [
+    {
+      "id": "human-relation-irreplaceable",
+      "label": "Human Relationship\nis Irreplaceable",
+      "shortLabel": "Human Relationship is Irreplaceable",
+      "x": 28, "y": 38, "size": 52,
+      "postIds": ["p1", "p3", "p5", "p6", "p8", "p10"],
+      "isGap": false,
+      "consensusWarning": "6 posts converge on the view that human teaching is irreplaceable. Counter-arguments from the AI benefits cluster have not been engaged."
+    },
+    {
+      "id": "ai-tutor-benefits",
+      "label": "AI Tutors Offer\nReal Benefits",
+      "shortLabel": "AI Tutors Offer Real Benefits",
+      "x": 72, "y": 38, "size": 48,
+      "postIds": ["p2", "p4", "p7", "p9"],
+      "isGap": false,
+      "consensusWarning": "4 posts converge on the practical benefits of AI tutoring. The relational and ethical concerns from the other cluster have not been addressed."
+    },
+    {
+      "id": "policy-governance",
+      "label": "Policy &\nGovernance",
+      "shortLabel": "Policy & Governance",
+      "x": 50, "y": 15, "size": 28,
+      "postIds": [],
+      "isGap": true
+    },
+    {
+      "id": "student-perspective",
+      "label": "Student\nPerspective",
+      "shortLabel": "Student Perspective",
+      "x": 15, "y": 70, "size": 28,
+      "postIds": [],
+      "isGap": true
+    },
+    {
+      "id": "hybrid-models",
+      "label": "Hybrid\nApproaches",
+      "shortLabel": "Hybrid Approaches",
+      "x": 80, "y": 70, "size": 28,
+      "postIds": [],
+      "isGap": true
+    }
+  ]
+}

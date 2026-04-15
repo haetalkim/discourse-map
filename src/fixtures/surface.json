@@ -1,0 +1,172 @@
+{
+  "discussionPrompt": {
+    "title": "Week 8 - AI Tools and Human Memory: Offloading or Augmenting Cognition?",
+    "body": "A minimum of 2 posts per week is required. Your initial post should: (1) draw on at least one concept from this week's readings, (2) interpret how it applies to your own experience with AI tools, and (3) connect your thinking to a classmate's post in your reply. Please post by Thursday midnight and reply by Saturday 9am.",
+    "date": "Posted Mar 3, 2025 9:00am"
+  },
+  "posts": [
+    {
+      "id": "p1",
+      "authorId": "jennifer",
+      "authorName": "Jennifer H.",
+      "initials": "H",
+      "date": "Mar 4, 2025 8:45pm",
+      "lastReply": "Mar 6, 2025 10:00am",
+      "replyCount": 1,
+      "text": "I use ChatGPT a lot for summarizing readings and it definitely saves time. The cognitive offloading concept from the readings is relevant here—I think I'm offloading memory tasks to the AI. It's convenient but I sometimes wonder if I'm actually learning less. The readings were interesting this week.",
+      "clusterId": "cognitive-offloading",
+      "parentId": null
+    },
+    {
+      "id": "p2",
+      "authorId": "stella",
+      "authorName": "Stella K.",
+      "initials": "SK",
+      "date": "Mar 4, 2025 11:30pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "I connected this week's topic to how I use Google Maps. I never memorize routes anymore because I just rely on the app. This seems like cognitive offloading too. I think AI is similar—we rely on it instead of building our own knowledge. It's a habit I've noticed in myself.",
+      "clusterId": "cognitive-offloading",
+      "parentId": null
+    },
+    {
+      "id": "p3",
+      "authorId": "liz",
+      "authorName": "Liz C.",
+      "initials": "LC",
+      "date": "Mar 5, 2025 2:10pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "AI writing tools feel like a double-edged sword. They help me get started when I'm stuck, but I'm not sure how much I'm actually developing my own writing skills. The readings talked about extended cognition which I thought was interesting. I think there's a balance to find.",
+      "clusterId": "ai-writing-tools",
+      "parentId": null
+    },
+    {
+      "id": "p4",
+      "authorId": "addison",
+      "authorName": "Addison R.",
+      "initials": "AR",
+      "date": "Mar 5, 2025 7:00pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "I agree that cognitive offloading is happening with AI. I use Notion AI to organize my notes and it does a lot of the structuring for me. I used to do that myself. I think this is related to what the readings said about transactive memory. Good topic this week.",
+      "clusterId": "cognitive-offloading",
+      "parentId": null
+    },
+    {
+      "id": "p5",
+      "authorId": "matty",
+      "authorName": "Matty H.",
+      "initials": "MH",
+      "date": "Mar 6, 2025 9:15am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "I think AI can actually help with metacognition if used correctly. When I ask ChatGPT to explain my reasoning back to me, it helps me see gaps. But I know most people don't use it that way. I found this week's readings on metacognitive regulation useful.",
+      "clusterId": "metacognition-ai",
+      "parentId": null
+    },
+    {
+      "id": "p6",
+      "authorId": "jennifer",
+      "authorName": "Jennifer H.",
+      "initials": "H",
+      "date": "Mar 6, 2025 10:00am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Stella, I had the same thought about Google Maps. I also can't remember phone numbers anymore. I think we're both saying the same thing about offloading. Good point.",
+      "clusterId": "cognitive-offloading",
+      "parentId": "p2"
+    },
+    {
+      "id": "p7",
+      "authorId": "stella",
+      "authorName": "Stella K.",
+      "initials": "SK",
+      "date": "Mar 6, 2025 11:00am",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Liz, I think you're right that there's a balance. AI tools are helpful but we need to make sure we're still learning. I've noticed the same thing with writing tools.",
+      "clusterId": "ai-writing-tools",
+      "parentId": "p3"
+    },
+    {
+      "id": "p8",
+      "authorId": "liz",
+      "authorName": "Liz C.",
+      "initials": "LC",
+      "date": "Mar 6, 2025 12:30pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Addison, the Notion AI point is interesting. I use similar tools. I think we are all saying that AI is changing how we organize and remember things. It's something to think about.",
+      "clusterId": "cognitive-offloading",
+      "parentId": "p4"
+    },
+    {
+      "id": "p9",
+      "authorId": "addison",
+      "authorName": "Addison R.",
+      "initials": "AR",
+      "date": "Mar 6, 2025 2:00pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Matty, that's a good point about metacognition. I haven't thought about using AI that way. Maybe I should try it.",
+      "clusterId": "metacognition-ai",
+      "parentId": "p5"
+    },
+    {
+      "id": "p10",
+      "authorId": "matty",
+      "authorName": "Matty H.",
+      "initials": "MH",
+      "date": "Mar 6, 2025 3:30pm",
+      "lastReply": null,
+      "replyCount": 0,
+      "text": "Jennifer, I think your point about learning less is important. That's what worries me too. We should be intentional about when we use AI.",
+      "clusterId": "cognitive-offloading",
+      "parentId": "p1"
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cognitive-offloading",
+      "label": "Cognitive Offloading\n& AI Dependence",
+      "shortLabel": "Cognitive Offloading & AI Dependence",
+      "x": 45, "y": 35, "size": 56,
+      "postIds": ["p1", "p2", "p4", "p6", "p8", "p10"],
+      "isGap": false,
+      "consensusWarning": "6 posts converge on the same concern about AI dependence. No one has challenged this view or offered a counter-perspective."
+    },
+    {
+      "id": "ai-writing-tools",
+      "label": "AI Writing Tools\n& Skill Development",
+      "shortLabel": "AI Writing Tools & Skill Development",
+      "x": 70, "y": 60, "size": 28,
+      "postIds": ["p3", "p7"],
+      "isGap": false
+    },
+    {
+      "id": "metacognition-ai",
+      "label": "AI &\nMetacognition",
+      "shortLabel": "AI & Metacognition",
+      "x": 25, "y": 65, "size": 24,
+      "postIds": ["p5", "p9"],
+      "isGap": false
+    },
+    {
+      "id": "equity-access",
+      "label": "Equity &\nAccess to AI",
+      "shortLabel": "Equity & Access to AI",
+      "x": 75, "y": 20, "size": 30,
+      "postIds": [],
+      "isGap": true
+    },
+    {
+      "id": "instructional-design",
+      "label": "Instructional Design\nImplications",
+      "shortLabel": "Instructional Design Implications",
+      "x": 15, "y": 25, "size": 30,
+      "postIds": [],
+      "isGap": true
+    }
+  ]
+}
