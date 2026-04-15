@@ -1,6 +1,92 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { getOrCreateBridgeId, logChannelName, readFullViewLogMeta, writeFullViewLogMeta } from "./logBroadcast";
 
 const SessionLogContext = createContext(null);
+
+const noop = () => {};
+
+/** Full View tab: forwards logEvent / addNote to the main tab via BroadcastChannel + localStorage meta. */
+export function SessionLogRelayProvider({ bridgeId, children }) {
+  const channelRef = useRef(null);
+
+  useEffect(() => {
+    if (!bridgeId) return undefined;
+    const ch = new BroadcastChannel(logChannelName(bridgeId));
+    channelRef.current = ch;
+    return () => {
+      ch.close();
+      channelRef.current = null;
+    };
+  }, [bridgeId]);
+
+  const postAppend = useCallback((type, payload) => {
+    const ch = channelRef.current;
+    if (!ch || !bridgeId) return;
+    const meta = readFullViewLogMeta();
+    if (!meta) return;
+    const ts = new Date().toISOString();
+    const event = {
+      ts,
+      type,
+      payload,
+      scenario: meta.activeScenario,
+      persona: meta.activePersona,
+      scenarioId: meta.activeScenario,
+      personaId: meta.activePersona,
+      authorId: meta.activeAuthorId,
+    };
+    ch.postMessage({ type: "append", event });
+  }, [bridgeId]);
+
+  const logEvent = useCallback(
+    (type, payload = {}) => {
+      const meta = readFullViewLogMeta();
+      if (!meta || meta.loggingState !== "active") return;
+      postAppend(type, { ...payload, source: "fullview" });
+    },
+    [postAppend],
+  );
+
+  const addNote = useCallback(
+    (text) => {
+      const meta = readFullViewLogMeta();
+      if (!meta) return;
+      const t = String(text || "").trim();
+      if (!t) return;
+      if (meta.loggingState !== "active" && meta.loggingState !== "paused") return;
+      postAppend("note_added", { text: t, source: "fullview" });
+    },
+    [postAppend],
+  );
+
+  const value = useMemo(
+    () => ({
+      events: [],
+      logEvent,
+      clearLog: noop,
+      exportToFile: noop,
+      setSessionExportSnapshot: noop,
+      activeScenario: "default",
+      setActiveScenario: noop,
+      activePersona: "none",
+      setActivePersona: noop,
+      activeAuthorId: "unknown",
+      setActiveAuthorId: noop,
+      captureMode: false,
+      setCaptureMode: noop,
+      loggingState: "idle",
+      startLogging: noop,
+      pauseLogging: noop,
+      resumeLogging: noop,
+      endLogging: noop,
+      genomicsCode: null,
+      addNote,
+    }),
+    [logEvent, addNote],
+  );
+
+  return <SessionLogContext.Provider value={value}>{children}</SessionLogContext.Provider>;
+}
 
 export function SessionLogProvider({ children }) {
   const [events, setEvents] = useState([]);
@@ -81,6 +167,27 @@ export function SessionLogProvider({ children }) {
     appendEvent("note_added", { text: t });
   }, [appendEvent, loggingState]);
 
+  // Full View (other tab) reads this from localStorage to know if logging is active and which author/scenario to stamp.
+  useEffect(() => {
+    writeFullViewLogMeta({
+      loggingState,
+      activeScenario,
+      activePersona,
+      activeAuthorId,
+    });
+  }, [loggingState, activeScenario, activePersona, activeAuthorId]);
+
+  // Merge events forwarded from Full View tabs (same origin).
+  useEffect(() => {
+    const id = getOrCreateBridgeId();
+    const ch = new BroadcastChannel(logChannelName(id));
+    ch.onmessage = (ev) => {
+      if (ev.data?.type !== "append" || !ev.data?.event) return;
+      setEvents((prev) => [...prev, ev.data.event]);
+    };
+    return () => ch.close();
+  }, []);
+
   const exportToFile = useCallback(() => {
     const exportedAt = new Date().toISOString();
     const { posts, clusters } = exportSnapshotRef.current;
@@ -148,6 +255,10 @@ export function useSessionLog() {
   const ctx = useContext(SessionLogContext);
   if (!ctx) throw new Error("useSessionLog must be used within SessionLogProvider");
   return ctx;
+}
+
+export function useSessionLogOptional() {
+  return useContext(SessionLogContext);
 }
 
 /** Bottom drawer: session telemetry + export (development only). */

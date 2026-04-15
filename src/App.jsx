@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import DiscourseMapGuide from "./DiscourseMapGuide";
-import { SessionLogProvider, SessionLogDrawer, useSessionLog } from "./session/SessionLogContext";
+import { SessionLogProvider, SessionLogRelayProvider, SessionLogDrawer, useSessionLog, useSessionLogOptional } from "./session/SessionLogContext";
+import { getOrCreateBridgeId } from "./session/logBroadcast";
 import { SyntheticTestPanel } from "./dev/SyntheticTestPanel";
 import { addStudyPost, deleteStudyPost, isFirebaseEnabled, setStudyThreadConfig, subscribeFirebaseAuthUid, subscribeToStudyPosts, subscribeToStudyThreadConfig, updateStudyPost } from "./study/firebase";
 
@@ -909,6 +910,9 @@ function DiscourseMapExpanded({
 
 // ─── Full Map View (SAIL-inspired 3-panel overlay) ───────────────────────────
 function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, connections = CONNECTIONS, keywords = KEYWORDS }) {
+  const sessionLog = useSessionLogOptional();
+  const clusterHoverAt = useRef({});
+  const prevSelectedCluster = useRef(null);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [hoveredCluster,  setHoveredCluster]  = useState(null);
   const [noteText,        setNoteText]        = useState("");
@@ -921,6 +925,37 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
   const [pan,             setPan]             = useState({ x:0, y:0 });
   const [isDragging,      setIsDragging]      = useState(false);
   const dragStart = useRef({});
+
+  const logClusterHoverEnd = useCallback((clusterId, isGap) => {
+    const t0 = clusterHoverAt.current[clusterId];
+    if (t0 == null) return;
+    delete clusterHoverAt.current[clusterId];
+    const durationMs = Math.round(performance.now() - t0);
+    if (durationMs < 30) return;
+    sessionLog?.logEvent?.("cluster_hovered", { clusterId, isGap, durationMs });
+  }, [sessionLog]);
+
+  const onClusterPointerEnter = useCallback((clusterId) => {
+    clusterHoverAt.current[clusterId] = performance.now();
+  }, []);
+
+  useEffect(() => {
+    sessionLog?.logEvent?.("fullview_opened", { isNewTab });
+  }, [isNewTab, sessionLog]);
+
+  useEffect(() => {
+    if (!sessionLog?.logEvent) return;
+    const prev = prevSelectedCluster.current;
+    prevSelectedCluster.current = selectedCluster;
+    if (prev === selectedCluster) return;
+    if (selectedCluster) {
+      sessionLog.logEvent("cluster_selected", { clusterId: selectedCluster });
+      const cl = clusters.find(c => c.id === selectedCluster);
+      if (cl?.isGap) sessionLog.logEvent("gap_cluster_viewed", { clusterId: selectedCluster });
+    } else if (prev) {
+      sessionLog.logEvent("cluster_cleared", { clusterId: prev });
+    }
+  }, [selectedCluster, clusters, sessionLog]);
 
   useEffect(() => {
     try {
@@ -969,6 +1004,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
       localStorage.setItem(NOTES_STORAGE_KEY, noteText);
       setNotesSaved(true);
       setTimeout(() => setNotesSaved(false), 2200);
+      sessionLog?.addNote?.(noteText);
     } catch { /* ignore */ }
   };
 
@@ -976,6 +1012,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
     navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
+    sessionLog?.logEvent?.("prompt_inserted", { starterLength: text != null ? String(text).length : 0 });
   };
 
   return (
@@ -1094,7 +1131,8 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                   if(cl.isGap) return (
                     <g key={cl.id} style={{cursor:"pointer",animation:`clIn 0.45s ${idx*0.055}s both`}}
                       onClick={()=>setSelectedCluster(selectedCluster===cl.id?null:cl.id)}
-                      onMouseEnter={()=>setHoveredCluster(cl.id)} onMouseLeave={()=>setHoveredCluster(null)}>
+                      onMouseEnter={()=>{ setHoveredCluster(cl.id); onClusterPointerEnter(cl.id); }}
+                      onMouseLeave={()=>{ setHoveredCluster(null); logClusterHoverEnd(cl.id, true); }}>
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={cl.size*0.86} fill="white" fillOpacity={active?0.5:0.3}/>
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={cl.size*0.86} fill="none" stroke="#8E8E93" strokeWidth="1.5" strokeDasharray="7 5" style={{animation:"gapSpin 7s linear infinite"}} opacity={active?0.7:0.4}/>
                       <text x={`${cl.x}%`} y={`${cl.y-1}%`} textAnchor="middle" dominantBaseline="middle" fill="#8E8E93" fontSize="16" opacity={active?0.9:0.55}>?</text>
@@ -1105,7 +1143,8 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                   return (
                     <g key={cl.id} style={{cursor:"pointer",animation:`clIn 0.45s ${idx*0.055}s both`}}
                       onClick={()=>setSelectedCluster(selectedCluster===cl.id?null:cl.id)}
-                      onMouseEnter={()=>setHoveredCluster(cl.id)} onMouseLeave={()=>setHoveredCluster(null)}>
+                      onMouseEnter={()=>{ setHoveredCluster(cl.id); onClusterPointerEnter(cl.id); }}
+                      onMouseLeave={()=>{ setHoveredCluster(null); logClusterHoverEnd(cl.id, false); }}>
                       {/* outer glow */}
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={cl.size*0.88} fill={cc.base} opacity={active?0.13:0.06} style={{transition:"opacity 0.3s"}}/>
                       {/* mid ring */}
@@ -1223,7 +1262,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
 
                   {/* Connected themes — shown inside selected */}
                   {isSel && (() => {
-                    const conns = CONNECTIONS.filter(c=>c.from===cl.id||c.to===cl.id);
+                    const conns = connections.filter(c=>c.from===cl.id||c.to===cl.id);
                     if (!conns.length) return null;
                     return (
                       <div>
@@ -1272,7 +1311,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                 {[
                   { n:nonGaps.length,                                             label:"Active themes",    color:A.green,  hint:"Clusters on the map that already have student posts." },
                   { n:gaps.length,                                                label:"Unexplored gaps",  color:A.orange, hint:"Theme areas with no posts yet (instructor-seeded gaps)." },
-                  { n:CONNECTIONS.filter(c=>c.strength==="underexplored").length, label:"Weak connections", color:A.orange, hint:"Links between themes marked as underexplored in this prototype (few posts bridging those ideas)." },
+                  { n:connections.filter(c=>c.strength==="underexplored").length, label:"Weak connections", color:A.orange, hint:"Links between themes marked as underexplored in this prototype (few posts bridging those ideas)." },
                   { n:clusters.filter(c=>c.consensusWarning).length,              label:"Consensus risks",  color:A.red,    hint:"Clusters where the mock data flags similar views and missing counter-perspectives." },
                 ].map((s,i)=>(
                   <div key={i} title={s.hint} style={{ background:A.panel, borderRadius:"9px", border:`0.5px solid ${A.separator}`, padding:"8px 9px", cursor:"help" }}>
@@ -1500,7 +1539,9 @@ function Toast({ message, onDone }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const isFullViewTab = new URLSearchParams(window.location.search).get("fullview") === "1";
+  const sp = new URLSearchParams(window.location.search);
+  const isFullViewTab = sp.get("fullview") === "1";
+  const logBridgeId = sp.get("logBridge") || "";
   if (isFullViewTab) {
     const rawClusters = sessionStorage.getItem("dm_fullview_clusters");
     const rawPosts    = sessionStorage.getItem("dm_fullview_posts");
@@ -1509,7 +1550,7 @@ export default function App() {
     const isStudyLike = Array.isArray(tabClusters) && tabClusters.some(c => String(c?.id || "").includes("ethics-responsibility"));
     const tabConnections = isStudyLike ? deriveStudyConnections(tabPosts, tabClusters) : [];
     const tabKeywords = isStudyLike ? deriveStudyKeywords(tabPosts, tabClusters) : [];
-    return (
+    const full = (
       <FullMapView
         clusters={tabClusters}
         posts={tabPosts}
@@ -1520,6 +1561,7 @@ export default function App() {
         isNewTab={true}
       />
     );
+    return logBridgeId ? <SessionLogRelayProvider bridgeId={logBridgeId}>{full}</SessionLogRelayProvider> : full;
   }
   return (
     <SessionLogProvider>
@@ -2803,7 +2845,11 @@ function AppMain() {
                 onOpenFullView={()=>{
                   sessionStorage.setItem("dm_fullview_clusters", JSON.stringify(clusters));
                   sessionStorage.setItem("dm_fullview_posts",    JSON.stringify(posts));
-                  window.open(window.location.pathname + "?fullview=1", "_blank");
+                  const id = getOrCreateBridgeId();
+                  const u = new URL(window.location.href);
+                  u.searchParams.set("fullview", "1");
+                  u.searchParams.set("logBridge", id);
+                  window.open(u.toString(), "_blank");
                 }}
               />
             )}
