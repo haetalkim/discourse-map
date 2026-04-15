@@ -1,5 +1,11 @@
 import { initializeApp, getApps } from "firebase/app";
-import { browserLocalPersistence, getAuth, setPersistence, signInAnonymously } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  getAuth,
+  onAuthStateChanged,
+  setPersistence,
+  signInAnonymously,
+} from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -34,6 +40,32 @@ export function isFirebaseEnabled() {
   return Boolean(getFirebaseConfigFromEnv());
 }
 
+/** Wait until Firebase has finished restoring auth from persistence, then ensure an anonymous user. */
+function ensureAnonymousAuthReady(auth) {
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(
+      auth,
+      async (user) => {
+        if (user) {
+          unsub();
+          resolve();
+          return;
+        }
+        try {
+          await signInAnonymously(auth);
+        } catch (e) {
+          unsub();
+          reject(e);
+        }
+      },
+      (err) => {
+        unsub();
+        reject(err);
+      },
+    );
+  });
+}
+
 export async function getFirebase() {
   if (cached) return cached;
   const config = getFirebaseConfigFromEnv();
@@ -44,16 +76,24 @@ export async function getFirebase() {
   const db = getFirestore(app);
 
   // Anonymous auth gives us a stable uid for security rules.
+  // Must NOT call signInAnonymously before persistence restores, or we create a new uid and lose edit/delete.
   try {
-    // Ensure the anonymous uid persists across refresh + "change code".
     await setPersistence(auth, browserLocalPersistence);
-    if (!auth.currentUser) await signInAnonymously(auth);
+    await ensureAnonymousAuthReady(auth);
   } catch {
     // If anonymous auth is disabled, we can still read/write depending on rules.
   }
 
   cached = { app, auth, db };
   return cached;
+}
+
+/** Keep UI (authorUid match for edit/delete) in sync with auth restores + re-login flows. */
+export async function subscribeFirebaseAuthUid(onUid) {
+  const { auth } = await getFirebase();
+  return onAuthStateChanged(auth, (user) => {
+    onUid(user?.uid ?? null);
+  });
 }
 
 export async function getFirebaseAuthUid() {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import DiscourseMapGuide from "./DiscourseMapGuide";
 import { SessionLogProvider, SessionLogDrawer, useSessionLog } from "./session/SessionLogContext";
 import { SyntheticTestPanel } from "./dev/SyntheticTestPanel";
-import { addStudyPost, deleteStudyPost, getFirebaseAuthUid, isFirebaseEnabled, setStudyThreadConfig, subscribeToStudyPosts, subscribeToStudyThreadConfig, updateStudyPost } from "./study/firebase";
+import { addStudyPost, deleteStudyPost, isFirebaseEnabled, setStudyThreadConfig, subscribeFirebaseAuthUid, subscribeToStudyPosts, subscribeToStudyThreadConfig, updateStudyPost } from "./study/firebase";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -1656,10 +1656,6 @@ function AppMain() {
     let unsub = null;
     (async () => {
       try {
-        try {
-          const uid = await getFirebaseAuthUid();
-          setFirebaseUid(uid);
-        } catch { /* ignore */ }
         unsub = await subscribeToStudyPosts({
           ...STUDY_FIREBASE_IDS,
           onPosts: (remotePosts) => {
@@ -1713,6 +1709,33 @@ function AppMain() {
     if (firebasePostsEnabled) return;
     logEvent("study_backend_mode", { mode: "local_only" });
   }, [isStudy, firebasePostsEnabled, logEvent]);
+
+  // Keep firebaseUid aligned with Auth (persistence restore + anonymous sign-in); required for edit/delete vs authorUid.
+  useEffect(() => {
+    if (!firebasePostsEnabled) {
+      setFirebaseUid(null);
+      return undefined;
+    }
+    let cancelled = false;
+    let unsubAuth = () => {};
+    (async () => {
+      try {
+        const unsub = await subscribeFirebaseAuthUid((uid) => {
+          if (!cancelled) setFirebaseUid(uid);
+        });
+        if (cancelled) unsub();
+        else unsubAuth = unsub;
+      } catch {
+        if (!cancelled) setFirebaseUid(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        unsubAuth();
+      } catch { /* ignore */ }
+    };
+  }, [firebasePostsEnabled]);
 
   // Study identity → active author
   useEffect(() => {
