@@ -191,12 +191,22 @@ export function SessionLogProvider({ children }) {
   const exportToFile = useCallback(() => {
     const exportedAt = new Date().toISOString();
     const { posts, clusters } = exportSnapshotRef.current;
+    const orderedEvents = events.map((e) => ({
+      scenario: e.scenario,
+      persona: e.persona,
+      authorId: e.authorId,
+      ts: e.ts,
+      type: e.type,
+      payload: e.payload ?? {},
+    }));
     const body = {
-      exportedAt,
       scenario: activeScenario,
       persona: activePersona,
+      authorId: activeAuthorId,
       genomicsCode,
-      events,
+      exportedAt,
+      eventCount: events.length,
+      events: orderedEvents,
       snapshot: {
         timestamp: exportedAt,
         scenarioId: activeScenario,
@@ -216,7 +226,7 @@ export function SessionLogProvider({ children }) {
     a.download = `discoursemap-${scenario}-${persona}-${gcode}-${stamp}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [activeScenario, activePersona, events, genomicsCode]);
+  }, [activeScenario, activePersona, activeAuthorId, events, genomicsCode]);
 
   const value = useMemo(
     () => ({
@@ -259,6 +269,31 @@ export function useSessionLog() {
 
 export function useSessionLogOptional() {
   return useContext(SessionLogContext);
+}
+
+/** Dwell-based UI hover logging (same threshold as meaningful attention). */
+export function useUiHoverDwell(logEvent, minMs = 450) {
+  const timers = useRef({});
+  const startUiHover = useCallback(
+    (controlId, extra = {}) => {
+      if (!controlId) return;
+      timers.current[controlId] = { t: performance.now(), extra };
+    },
+    [],
+  );
+  const endUiHover = useCallback(
+    (controlId) => {
+      if (!controlId) return;
+      const entry = timers.current[controlId];
+      delete timers.current[controlId];
+      if (!entry) return;
+      const durationMs = Math.round(performance.now() - entry.t);
+      if (durationMs < minMs) return;
+      logEvent?.("ui_hover", { controlId, durationMs, ...entry.extra });
+    },
+    [logEvent, minMs],
+  );
+  return { startUiHover, endUiHover };
 }
 
 /** Bottom drawer: session telemetry + export (development only). */
@@ -326,15 +361,21 @@ export function SessionLogDrawer() {
               {events.length === 0 ? (
                 <div style={{ color: "#64748b" }}>No events yet. Interact with the map, replies, and prompts.</div>
               ) : (
-                events.map((e, i) => (
-                  <div key={i} style={{ marginBottom: 6, lineHeight: 1.35, wordBreak: "break-word" }}>
-                    <span style={{ color: "#94a3b8" }}>{e.ts.slice(11, 23)}</span>{" "}
-                    <span style={{ color: "#38bdf8" }}>{e.type}</span>
-                    {Object.keys(e.payload || {}).length > 0 && (
-                      <span style={{ color: "#a8b4c4" }}> {JSON.stringify(e.payload)}</span>
-                    )}
-                  </div>
-                ))
+                events.map((e, i) => {
+                  const cid = e.payload?.controlId;
+                  return (
+                    <div key={i} style={{ marginBottom: 6, lineHeight: 1.35, wordBreak: "break-word" }}>
+                      <span style={{ color: "#94a3b8" }}>{e.ts.slice(11, 23)}</span>{" "}
+                      <span style={{ color: "#38bdf8" }}>{e.type}</span>
+                      {cid && (
+                        <span style={{ color: "#fbbf24", fontWeight: 600 }}> {String(cid)}</span>
+                      )}
+                      {Object.keys(e.payload || {}).length > 0 && (
+                        <span style={{ color: "#a8b4c4" }}> {JSON.stringify(e.payload)}</span>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

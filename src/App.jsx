@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import DiscourseMapGuide from "./DiscourseMapGuide";
-import { SessionLogProvider, SessionLogRelayProvider, SessionLogDrawer, useSessionLog, useSessionLogOptional } from "./session/SessionLogContext";
+import { SessionLogProvider, SessionLogRelayProvider, SessionLogDrawer, useSessionLog, useSessionLogOptional, useUiHoverDwell } from "./session/SessionLogContext";
 import { getOrCreateBridgeId } from "./session/logBroadcast";
 import { SyntheticTestPanel } from "./dev/SyntheticTestPanel";
 import { addStudyPost, deleteStudyPost, isFirebaseEnabled, setStudyThreadConfig, subscribeFirebaseAuthUid, subscribeToStudyPosts, subscribeToStudyThreadConfig, updateStudyPost } from "./study/firebase";
@@ -514,13 +514,30 @@ function Sidebar() {
 }
 
 // ─── Discourse Map Collapsed ──────────────────────────────────────────────────
-function DiscourseMapCollapsedBar({ onExpand }) {
+function DiscourseMapCollapsedBar({ onExpand, logEvent }) {
+  const log = typeof logEvent === "function" ? logEvent : () => {};
+  const { startUiHover, endUiHover } = useUiHoverDwell(logEvent, 450);
+  const expand = (e) => {
+    log("ui_click", {
+      controlId: "map.collapsed.expand",
+      label: "Expand map",
+      shiftKey: Boolean(e?.shiftKey),
+      metaKey: Boolean(e?.metaKey),
+      ctrlKey: Boolean(e?.ctrlKey),
+    });
+    onExpand();
+  };
   return (
-    <div onClick={onExpand} style={{ padding:"10px 20px", background:C.white, border:`1px solid ${C.border}`, borderRadius:"6px", marginBottom:"18px", cursor:"pointer", display:"flex", alignItems:"center", gap:"12px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+    <div
+      onClick={(e) => expand(e)}
+      onMouseEnter={() => startUiHover("map.collapsed.bar", { label: "Collapsed Discourse Map bar" })}
+      onMouseLeave={() => endUiHover("map.collapsed.bar")}
+      style={{ padding:"10px 20px", background:C.white, border:`1px solid ${C.border}`, borderRadius:"6px", marginBottom:"18px", cursor:"pointer", display:"flex", alignItems:"center", gap:"12px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}
+    >
       <span style={{ width:10, height:10, borderRadius:"50%", background:"#22c55e", animation:"pulse 1.5s ease-in-out infinite" }} />
       <span style={{ fontSize:"15px", fontWeight:"700", color:C.text, fontFamily:"Lato,Arial,sans-serif" }}>Discourse Map</span>
       <span style={{ fontSize:"13px", color:C.textLight, fontFamily:"Lato,Arial,sans-serif" }}>— posts analyzed · Visible after your initial post</span>
-      <button onClick={e=>{e.stopPropagation();onExpand();}} style={{ marginLeft:"auto", background:C.canvasBlue, color:C.white, border:"none", padding:"6px 14px", borderRadius:"4px", fontSize:"13px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"600" }}>Expand</button>
+      <button onClick={e => { e.stopPropagation(); expand(e); }} style={{ marginLeft:"auto", background:C.canvasBlue, color:C.white, border:"none", padding:"6px 14px", borderRadius:"4px", fontSize:"13px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"600" }}>Expand</button>
     </div>
   );
 }
@@ -568,7 +585,10 @@ function DiscourseMapExpanded({
   keywords = KEYWORDS,
   selectedConnectionKey = null,
   isStudy = false,
+  logEvent: logEv,
 }) {
+  const log = typeof logEv === "function" ? logEv : () => {};
+  const { startUiHover, endUiHover } = useUiHoverDwell(logEv, 450);
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({});
   const clusterHoverRef = useRef({ id: null, ts: null, gapTimer: null });
@@ -600,15 +620,38 @@ function DiscourseMapExpanded({
           }
         </div>
         <div style={{ display:"flex", gap:8 }}>
-          <button onClick={onOpenFullView}
-            title="Opens in a new tab — explore the map, themes, and writing angles in a focused view"
+          <button
+            type="button"
+            onClick={(e) => {
+              log("ui_click", {
+                controlId: "map.toolbar.open_full_view",
+                label: "Open Full View",
+                shiftKey: e.shiftKey,
+                metaKey: e.metaKey,
+                ctrlKey: e.ctrlKey,
+                altKey: e.altKey,
+              });
+              onOpenFullView?.();
+            }}
+            title="Opens in a new tab — explore the map, themes, and writing angles in a focused view (Shift+click still logged)"
             style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#EFF6FF", border:`1px solid ${C.canvasBlue}40`, borderRadius:"4px", padding:"5px 12px", fontSize:"12px", color:C.canvasBlue, cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"700", transition:"background 0.15s" }}
-            onMouseEnter={e=>e.currentTarget.style.background="#DBEAFE"}
-            onMouseLeave={e=>e.currentTarget.style.background="#EFF6FF"}>
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#DBEAFE"; startUiHover("map.toolbar.open_full_view", { label: "Open Full View" }); }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#EFF6FF"; endUiHover("map.toolbar.open_full_view"); }}>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M7 1h4v4M11 1L6 6M5 3H2a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V8"/></svg>
             Open Full View
           </button>
-          <button onClick={onClose} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:"4px", padding:"5px 14px", fontSize:"13px", color:C.textLight, cursor:"pointer", fontFamily:"Lato,Arial,sans-serif" }}>Collapse</button>
+          <button
+            type="button"
+            onClick={(e) => {
+              log("ui_click", { controlId: "map.toolbar.collapse", label: "Collapse map", shiftKey: e.shiftKey });
+              onClose();
+            }}
+            onMouseEnter={() => startUiHover("map.toolbar.collapse", { label: "Collapse map" })}
+            onMouseLeave={() => endUiHover("map.toolbar.collapse")}
+            style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:"4px", padding:"5px 14px", fontSize:"13px", color:C.textLight, cursor:"pointer", fontFamily:"Lato,Arial,sans-serif" }}
+          >
+            Collapse
+          </button>
         </div>
       </div>
 
@@ -617,10 +660,37 @@ function DiscourseMapExpanded({
         {/* Zoom controls */}
         <div style={{ position:"absolute", top:12, right:14, zIndex:5, background:"rgba(255,255,255,0.97)", borderRadius:"6px", border:`1px solid ${C.borderLight}`, padding:"6px 10px", display:"flex", alignItems:"center", gap:6, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", boxShadow:"0 2px 8px rgba(0,0,0,0.08)" }}>
           <span style={{ fontWeight:"600", color:C.text, marginRight:2 }}>Zoom</span>
-          <button onClick={()=>onZoomChange(Math.max(0.6,zoom-0.2))} style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:"4px", width:24, height:24, cursor:"pointer", fontSize:"16px", lineHeight:1, color:C.text }}>−</button>
+          <button
+            type="button"
+            onClick={() => { log("ui_click", { controlId: "map.zoom.out", label: "Zoom out", zoomBefore: zoom }); onZoomChange(Math.max(0.6, zoom - 0.2)); }}
+            onMouseEnter={() => startUiHover("map.zoom.out", { label: "Zoom −" })}
+            onMouseLeave={() => endUiHover("map.zoom.out")}
+            style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:"4px", width:24, height:24, cursor:"pointer", fontSize:"16px", lineHeight:1, color:C.text }}
+          >
+            −
+          </button>
           <span style={{ minWidth:38, textAlign:"center", fontWeight:"700", color:C.text }}>{Math.round(zoom*100)}%</span>
-          <button onClick={()=>onZoomChange(Math.min(2.0,zoom+0.2))} style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:"4px", width:24, height:24, cursor:"pointer", fontSize:"16px", lineHeight:1, color:C.text }}>+</button>
-          <button onClick={()=>{onZoomChange(1);setSelectedCluster(null);setHoveredCluster(null);clearConnectionFocus();setPan({x:0,y:0});}} style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:"4px", padding:"0 8px", height:24, cursor:"pointer", fontSize:"11px", fontWeight:"600", color:C.textLight }}>Reset</button>
+          <button
+            type="button"
+            onClick={() => { log("ui_click", { controlId: "map.zoom.in", label: "Zoom in", zoomBefore: zoom }); onZoomChange(Math.min(2.0, zoom + 0.2)); }}
+            onMouseEnter={() => startUiHover("map.zoom.in", { label: "Zoom +" })}
+            onMouseLeave={() => endUiHover("map.zoom.in")}
+            style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:"4px", width:24, height:24, cursor:"pointer", fontSize:"16px", lineHeight:1, color:C.text }}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              log("ui_click", { controlId: "map.zoom.reset", label: "Reset zoom/pan", zoomBefore: zoom });
+              onZoomChange(1); setSelectedCluster(null); setHoveredCluster(null); clearConnectionFocus(); setPan({ x: 0, y: 0 });
+            }}
+            onMouseEnter={() => startUiHover("map.zoom.reset", { label: "Reset view" })}
+            onMouseLeave={() => endUiHover("map.zoom.reset")}
+            style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:"4px", padding:"0 8px", height:24, cursor:"pointer", fontSize:"11px", fontWeight:"600", color:C.textLight }}
+          >
+            Reset
+          </button>
         </div>
 
         {/* Canvas */}
@@ -968,7 +1038,7 @@ function DiscourseMapExpanded({
       {/* My Posts toggle */}
       <div style={{ padding:"10px 20px", borderTop:`1px solid ${C.borderLight}`, background:"#F8FAFC" }}>
         <label style={{ fontSize:"12px", color:C.textLight, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6, userSelect:"none" }}>
-          <input type="checkbox" checked={myPostsHighlight} onChange={e => setMyPostsHighlight(e.target.checked)} style={{ accentColor:C.canvasBlue }}/>
+          <input type="checkbox" checked={myPostsHighlight} onChange={(e) => { const v = e.target.checked; log("ui_click", { controlId: "map.my_posts_highlight", checked: v }); setMyPostsHighlight(v); }} style={{ accentColor:C.canvasBlue }}/>
           Highlight "My Posts" in map
         </label>
       </div>
@@ -979,6 +1049,7 @@ function DiscourseMapExpanded({
 // ─── Full Map View (SAIL-inspired 3-panel overlay) ───────────────────────────
 function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, connections = CONNECTIONS, keywords = KEYWORDS }) {
   const sessionLog = useSessionLogOptional();
+  const { startUiHover: fvHStart, endUiHover: fvHEnd } = useUiHoverDwell(sessionLog?.logEvent, 450);
   const clusterHoverAt = useRef({});
   const prevSelectedCluster = useRef(null);
   const [selectedCluster, setSelectedCluster] = useState(null);
@@ -1053,11 +1124,18 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
     fill2:        "#E5E5EA",
   };
 
+  const closeFullView = useCallback((source) => {
+    sessionLog?.logEvent?.("ui_click", { controlId: "fullview.close", source });
+    onClose();
+  }, [onClose, sessionLog]);
+
   useEffect(() => {
-    const h = e => { if (e.key === "Escape") onClose(); };
+    const h = (e) => {
+      if (e.key === "Escape") closeFullView("keyboard_escape");
+    };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
+  }, [closeFullView]);
 
   const activeCl   = selectedCluster ? clusters.find(c => c.id === selectedCluster) : null;
   const nonGaps    = clusters.filter(c => !c.isGap);
@@ -1092,6 +1170,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
       localStorage.setItem(NOTES_STORAGE_KEY, noteText);
       setNotesSaved(true);
       setTimeout(() => setNotesSaved(false), 2200);
+      sessionLog?.logEvent?.("ui_click", { controlId: "fullview.notes.save", textLength: (noteText || "").length });
       sessionLog?.addNote?.(noteText);
     } catch { /* ignore */ }
   };
@@ -1100,6 +1179,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
     navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
+    sessionLog?.logEvent?.("ui_click", { controlId: "fullview.copy_starter", starterLength: text != null ? String(text).length : 0 });
     sessionLog?.logEvent?.("prompt_inserted", { starterLength: text != null ? String(text).length : 0 });
   };
 
@@ -1121,7 +1201,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
       <div style={{ height:52, background:"rgba(255,255,255,0.85)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:`1px solid ${A.separator}`, display:"flex", alignItems:"center", padding:"0 20px", gap:14, flexShrink:0 }}>
         {/* Traffic-light dots */}
         <div style={{ display:"flex", gap:6, marginRight:4 }}>
-          <div onClick={onClose} title="Close" style={{ width:12, height:12, borderRadius:"50%", background:"#FF5F57", cursor:"pointer", flexShrink:0 }}/>
+          <div onClick={() => closeFullView("traffic_close_dot")} title="Close" style={{ width:12, height:12, borderRadius:"50%", background:"#FF5F57", cursor:"pointer", flexShrink:0 }}/>
           <div style={{ width:12, height:12, borderRadius:"50%", background:A.fill2, flexShrink:0 }}/>
           <div style={{ width:12, height:12, borderRadius:"50%", background:A.fill2, flexShrink:0 }}/>
         </div>
@@ -1134,7 +1214,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
         </span>
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:10 }}>
           {isNewTab && <span style={{ fontSize:"11px", color:A.label4, fontStyle:"italic" }}>Read-only — return to Canvas to post</span>}
-          <button onClick={onClose}
+          <button type="button" onClick={() => closeFullView("close_button")}
             style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"8px", padding:"5px 14px", fontSize:"12px", color:A.label2, cursor:"pointer", fontWeight:"500" }}>
             Close
           </button>
@@ -1149,10 +1229,10 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
           <div style={{ padding:"10px 16px", borderBottom:`1px solid ${A.separator}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, background:A.panel }}>
             <span style={{ fontSize:"11px", fontWeight:"600", color:A.label3, textTransform:"uppercase", letterSpacing:"0.5px" }}>Map</span>
             <div style={{ display:"flex", gap:4, alignItems:"center" }}>
-              <button onClick={()=>setZoom(z=>Math.max(0.5,z-0.15))} style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"6px", width:22, height:22, cursor:"pointer", color:A.label3, fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+              <button type="button" onClick={() => { sessionLog?.logEvent?.("ui_click", { controlId: "fullview.zoom.out", zoomBefore: zoom }); setZoom(z => Math.max(0.5, z - 0.15)); }} onMouseEnter={() => fvHStart("fullview.zoom.out")} onMouseLeave={() => fvHEnd("fullview.zoom.out")} style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"6px", width:22, height:22, cursor:"pointer", color:A.label3, fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
               <span style={{ fontSize:"11px", color:A.label4, minWidth:34, textAlign:"center", fontWeight:"500" }}>{Math.round(zoom*100)}%</span>
-              <button onClick={()=>setZoom(z=>Math.min(2.2,z+0.15))} style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"6px", width:22, height:22, cursor:"pointer", color:A.label3, fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
-              <button onClick={()=>{setZoom(1);setPan({x:0,y:0});}} style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"6px", padding:"0 8px", height:22, cursor:"pointer", color:A.label4, fontSize:"10px", fontWeight:"600" }}>Reset</button>
+              <button type="button" onClick={() => { sessionLog?.logEvent?.("ui_click", { controlId: "fullview.zoom.in", zoomBefore: zoom }); setZoom(z => Math.min(2.2, z + 0.15)); }} onMouseEnter={() => fvHStart("fullview.zoom.in")} onMouseLeave={() => fvHEnd("fullview.zoom.in")} style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"6px", width:22, height:22, cursor:"pointer", color:A.label3, fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+              <button type="button" onClick={() => { sessionLog?.logEvent?.("ui_click", { controlId: "fullview.zoom.reset", zoomBefore: zoom }); setZoom(1); setPan({ x: 0, y: 0 }); }} onMouseEnter={() => fvHStart("fullview.zoom.reset")} onMouseLeave={() => fvHEnd("fullview.zoom.reset")} style={{ background:A.fill, border:`1px solid ${A.separator2}`, borderRadius:"6px", padding:"0 8px", height:22, cursor:"pointer", color:A.label4, fontSize:"10px", fontWeight:"600" }}>Reset</button>
             </div>
           </div>
 
@@ -1276,7 +1356,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
         <div style={{ width:themesOpen?280:40, minWidth:themesOpen?200:40, flexShrink:0, borderRight:`0.5px solid ${A.separator}`, display:"flex", flexDirection:"column", background:A.panel, overflow:"hidden", transition:"width 0.2s ease" }}>
           <div style={{ padding:"0 8px", height:34, borderBottom:`0.5px solid ${A.separator}`, display:"flex", alignItems:"center", flexShrink:0, justifyContent:"space-between" }}>
             {themesOpen && <span style={{ fontSize:"10px", fontWeight:"700", letterSpacing:"0.7px", color:A.label3, textTransform:"uppercase" }}>Themes</span>}
-            <button type="button" title={themesOpen?"Collapse themes":"Expand themes"} onClick={()=>setThemesOpen(o=>!o)}
+            <button type="button" title={themesOpen?"Collapse themes":"Expand themes"} onClick={() => { setThemesOpen((o) => { const next = !o; sessionLog?.logEvent?.("ui_click", { controlId: "fullview.panel.themes_toggle", open: next }); return next; }); }} onMouseEnter={() => fvHStart("fullview.panel.themes_toggle")} onMouseLeave={() => fvHEnd("fullview.panel.themes_toggle")}
               style={{ marginLeft:themesOpen?"auto":0, width:28, height:28, border:"none", background:"transparent", cursor:"pointer", color:A.label3, fontSize:"14px", borderRadius:6 }}>
               {themesOpen?"◀":"▶"}
             </button>
@@ -1380,7 +1460,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
         {/* RIGHT: Workspace */}
         <div style={{ flex:workspaceOpen?1:undefined, width:workspaceOpen?undefined:40, minWidth:workspaceOpen?240:40, flexShrink:0, display:"flex", flexDirection:"column", background:A.sidebar, overflow:"hidden", transition:"min-width 0.2s ease,width 0.2s ease" }}>
           <div style={{ padding:"0 8px", height:34, borderBottom:`0.5px solid ${A.separator}`, display:"flex", alignItems:"center", flexShrink:0, background:"transparent", justifyContent:"space-between" }}>
-            <button type="button" title={workspaceOpen?"Collapse workspace":"Expand workspace"} onClick={()=>setWorkspaceOpen(o=>!o)}
+            <button type="button" title={workspaceOpen?"Collapse workspace":"Expand workspace"} onClick={() => { setWorkspaceOpen((o) => { const next = !o; sessionLog?.logEvent?.("ui_click", { controlId: "fullview.panel.workspace_toggle", open: next }); return next; }); }} onMouseEnter={() => fvHStart("fullview.panel.workspace_toggle")} onMouseLeave={() => fvHEnd("fullview.panel.workspace_toggle")}
               style={{ width:28, height:28, border:"none", background:"transparent", cursor:"pointer", color:A.label3, fontSize:"14px", borderRadius:6, order:workspaceOpen?0:1 }}>
               {workspaceOpen?"▶":"◀"}
             </button>
@@ -1428,7 +1508,14 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                 return (
                   <div key={p.id}>
                     <div
-                      onClick={()=>setActivePrompt(isAct?null:p)}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        const next = isAct ? null : p;
+                        sessionLog?.logEvent?.("ui_click", { controlId: "fullview.writing_angle.toggle", promptId: p.id, expanded: Boolean(next) });
+                        setActivePrompt(next);
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const next = isAct ? null : p; sessionLog?.logEvent?.("ui_click", { controlId: "fullview.writing_angle.toggle", promptId: p.id, expanded: Boolean(next), via: "keyboard" }); setActivePrompt(next); } }}
                       style={{ display:"flex", alignItems:"center", padding:"7px 9px", gap:8, background:A.panel, borderRadius:"8px", marginBottom:5, cursor:"pointer", border:`0.5px solid ${A.separator}`, transition:"background 0.12s" }}
                       onMouseEnter={e=>e.currentTarget.style.background="#FAFAFA"}
                       onMouseLeave={e=>e.currentTarget.style.background=A.panel}>
@@ -1570,7 +1657,8 @@ function EpistemicPromptsPanel({ prompts, contextSummary, useGlobal, onToggleMod
 }
 
 // ─── Post Card ────────────────────────────────────────────────────────────────
-function PostCard({ post, clusters, clusterColor, isMyPost, onReply, onEdit, onDelete, highlighted, isNew, onMouseEnter, onMouseLeave, refCallback, replyCount, repliesHidden, onToggleReplies }) {
+function PostCard({ post, clusters, clusterColor, isMyPost, onReply, onEdit, onDelete, highlighted, isNew, onMouseEnter, onMouseLeave, refCallback, replyCount, repliesHidden, onToggleReplies, logEvent }) {
+  const log = typeof logEvent === "function" ? logEvent : () => {};
   const themeIds = clusterIdsForPost(post);
   const safeText = extractPostText(post?.text);
   return (
@@ -1595,10 +1683,10 @@ function PostCard({ post, clusters, clusterColor, isMyPost, onReply, onEdit, onD
         </div>
         {isMyPost && (
           <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-            <button type="button" onClick={()=>onEdit?.(post)} style={{ border:"none", background:"transparent", color:C.textLight, cursor:"pointer", fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}>
+            <button type="button" onClick={() => { log("ui_click", { controlId: "post.edit", postId: post.id, authorId: post.authorId }); onEdit?.(post); }} style={{ border:"none", background:"transparent", color:C.textLight, cursor:"pointer", fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}>
               Edit
             </button>
-            <button type="button" onClick={()=>onDelete?.(post)} style={{ border:"none", background:"transparent", color:"#B91C1C", cursor:"pointer", fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}>
+            <button type="button" onClick={() => { log("ui_click", { controlId: "post.delete", postId: post.id, authorId: post.authorId }); onDelete?.(post); }} style={{ border:"none", background:"transparent", color:"#B91C1C", cursor:"pointer", fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}>
               Delete
             </button>
           </div>
@@ -1607,12 +1695,12 @@ function PostCard({ post, clusters, clusterColor, isMyPost, onReply, onEdit, onD
       <p style={{ fontSize:"14px", color:C.text, fontFamily:"Lato,Arial,sans-serif", lineHeight:"1.7", margin:"0 0 10px" }}>{safeText}</p>
       <div style={{ display:"flex", alignItems:"center", gap:"14px", paddingTop:"8px", borderTop:`1px solid ${C.borderLight}` }}>
         {replyCount>0 && onToggleReplies && (
-          <span onClick={onToggleReplies} style={{ fontSize:"13px", color:C.linkBlue, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer" }}>
+          <span onClick={() => { log("ui_click", { controlId: "post.toggle_replies", postId: post.id, repliesHidden: !repliesHidden }); onToggleReplies(); }} style={{ fontSize:"13px", color:C.linkBlue, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer" }}>
             {repliesHidden ? `▸ Show ${replyCount} ${replyCount===1?"Reply":"Replies"}` : `▾ ${replyCount===1?"Hide 1 Reply":`Hide ${replyCount} Replies`}`}
           </span>
         )}
-        <span onClick={()=>onReply(post)} style={{ fontSize:"13px", color:C.linkBlue, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer" }}>↩ Reply</span>
-        <span style={{ fontSize:"13px", color:C.linkBlue, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer" }}>✉ Mark as Unread</span>
+        <span onClick={() => { log("ui_click", { controlId: "post.reply", postId: post.id }); onReply(post); }} style={{ fontSize:"13px", color:C.linkBlue, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer" }}>↩ Reply</span>
+        <span onClick={() => log("ui_click", { controlId: "post.mark_unread", postId: post.id })} style={{ fontSize:"13px", color:C.linkBlue, fontFamily:"Lato,Arial,sans-serif", cursor:"pointer" }}>✉ Mark as Unread</span>
       </div>
     </div>
   );
@@ -1712,9 +1800,11 @@ function AppMain() {
 
   const [activeAuthor, setActiveAuthor] = useState(CURRENT_USER);
   const { logEvent, setSessionExportSnapshot, activeScenario, activePersona, setActivePersona, setActiveAuthorId, captureMode, setCaptureMode, loggingState, startLogging, pauseLogging, resumeLogging, endLogging, genomicsCode, exportToFile, addNote } = useSessionLog();
+  const { startUiHover, endUiHover } = useUiHoverDwell(logEvent, 450);
   const [showGenomicsCode, setShowGenomicsCode] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const logoutStudy = useCallback(() => {
+    logEvent("ui_click", { controlId: "study.change_code", label: "Change study code / logout study identity" });
     try {
       localStorage.removeItem(STUDY_IDENTITY_STORAGE_KEY);
     } catch { /* ignore */ }
@@ -1723,7 +1813,7 @@ function AppMain() {
     setStudyLoginError("");
     setActiveAuthor(CURRENT_USER);
     setActiveAuthorId(CURRENT_USER.id);
-  }, [setActiveAuthorId]);
+  }, [logEvent, setActiveAuthorId]);
   const syntheticPanelEnabled = import.meta.env.DEV && isDemo && new URLSearchParams(window.location.search).get("synthetic") === "1";
   useEffect(() => {
     setSessionExportSnapshot({ posts, clusters });
@@ -2472,14 +2562,16 @@ function AppMain() {
             />
           ) : (
             <button
+              type="button"
               onClick={() => {
                 promptsOpenAtRef.current = Date.now();
                 logEvent("prompts_opened", {});
+                logEvent("ui_click", { controlId: "reply.writing_guidance.open", label: "Need writing guidance?" });
                 setShowPrompts(true);
               }}
               style={{ display:"inline-flex", alignItems:"center", gap:6, marginBottom:10, padding:"5px 12px", border:`1px solid ${C.borderLight}`, borderRadius:"20px", background:C.white, color:C.textLight, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", cursor:"pointer", transition:"border-color 0.15s, color 0.15s" }}
-              onMouseEnter={e=>{ e.currentTarget.style.borderColor=C.canvasBlue; e.currentTarget.style.color=C.canvasBlue; }}
-              onMouseLeave={e=>{ e.currentTarget.style.borderColor=C.borderLight; e.currentTarget.style.color=C.textLight; }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.canvasBlue; e.currentTarget.style.color = C.canvasBlue; startUiHover("reply.writing_guidance.open", { label: "Need writing guidance?" }); }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.borderLight; e.currentTarget.style.color = C.textLight; endUiHover("reply.writing_guidance.open"); }}
             >
               <span style={{ fontSize:"13px" }}>💡</span>
               Need writing guidance?
@@ -2494,9 +2586,10 @@ function AppMain() {
           style={{ width:"100%", minHeight:"100px", padding:"12px", border:`1px solid ${C.border}`, borderRadius:"6px", fontSize:"14px", fontFamily:"Lato,Arial,sans-serif", color:C.text, resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.6 }}
         />
         <div style={{ display:"flex", gap:"10px", marginTop:"10px" }}>
-          <button onClick={closeReply} style={{ padding:"8px 18px", border:`1px solid ${C.border}`, borderRadius:"4px", background:C.white, color:C.text, fontSize:"14px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif" }}>Cancel</button>
+          <button type="button" onClick={() => { logEvent("ui_click", { controlId: "reply.cancel", replyingToId: replyingTo?.id ?? null, gapClusterId: gapClusterId ?? null }); closeReply(); }} style={{ padding:"8px 18px", border:`1px solid ${C.border}`, borderRadius:"4px", background:C.white, color:C.text, fontSize:"14px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif" }}>Cancel</button>
           <button
-            onClick={() => handlePostReply()}
+            type="button"
+            onClick={() => { logEvent("ui_click", { controlId: "reply.submit_click", replyingToId: replyingTo?.id ?? null, gapClusterId: gapClusterId ?? null, textLength: (replyText || "").trim().length }); handlePostReply(); }}
             disabled={!replyText.trim()}
             style={{ padding:"8px 22px", border:"none", borderRadius:"4px", background:replyText.trim()?C.canvasBlue:"#C7CDD1", color:C.white, fontSize:"14px", cursor:replyText.trim()?"pointer":"default", fontFamily:"Lato,Arial,sans-serif", fontWeight:"700", transition:"background 0.15s" }}>
             Post Reply
@@ -2508,7 +2601,7 @@ function AppMain() {
 
   if (showGuide) return (
     <>
-      <button onClick={()=>setShowGuide(false)} style={{ position:"fixed", top:20, right:20, zIndex:9999, background:"#007AFF", color:"white", border:"none", padding:"10px 18px", borderRadius:"8px", fontSize:"14px", cursor:"pointer", fontFamily:"-apple-system,sans-serif", boxShadow:"0 4px 12px rgba(0,0,0,0.15)", fontWeight:"600" }}>
+      <button type="button" onClick={() => { logEvent("ui_click", { controlId: "guide.close", label: "Return to Canvas Prototype" }); setShowGuide(false); }} style={{ position:"fixed", top:20, right:20, zIndex:9999, background:"#007AFF", color:"white", border:"none", padding:"10px 18px", borderRadius:"8px", fontSize:"14px", cursor:"pointer", fontFamily:"-apple-system,sans-serif", boxShadow:"0 4px 12px rgba(0,0,0,0.15)", fontWeight:"600" }}>
         Return to Canvas Prototype
       </button>
       <DiscourseMapGuide />
@@ -2585,7 +2678,7 @@ function AppMain() {
       {toast && <Toast message={toast} onDone={()=>setToast(null)}/>}
 
       {isDemo && (
-        <button onClick={()=>setShowGuide(true)} style={{ position:"fixed", bottom:30, right:30, zIndex:9999, background:C.canvasDarkBlue, color:"white", border:"2px solid rgba(255,255,255,0.25)", padding:"12px 20px", borderRadius:"30px", fontSize:"14px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", boxShadow:"0 4px 16px rgba(0,0,0,0.25)", fontWeight:"700" }}>
+        <button type="button" onClick={() => { logEvent("ui_click", { controlId: "guide.open", label: "Open Educator Guide" }); setShowGuide(true); }} onMouseEnter={() => startUiHover("guide.open", { label: "Open Educator Guide" })} onMouseLeave={() => endUiHover("guide.open")} style={{ position:"fixed", bottom:30, right:30, zIndex:9999, background:C.canvasDarkBlue, color:"white", border:"2px solid rgba(255,255,255,0.25)", padding:"12px 20px", borderRadius:"30px", fontSize:"14px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", boxShadow:"0 4px 16px rgba(0,0,0,0.25)", fontWeight:"700" }}>
           ★ Open Educator Guide
         </button>
       )}
@@ -2611,15 +2704,27 @@ function AppMain() {
             <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"18px", padding:"8px 14px", background:C.white, border:`1px solid ${C.border}`, borderRadius:"4px", flexWrap:"wrap" }}>
               <span style={{ fontSize:"11px", color:C.textLight, fontWeight:"700", letterSpacing:"0.3px" }}>PROTOTYPE:</span>
               {[{id:"before",label:"Standard Canvas view"},{id:"after",label:"With DiscourseMap"},{id:"teacher",label:"Teacher setup"}].map(opt => (
-                <button key={opt.id} onClick={()=>{setView(opt.id);if(opt.id==="after")setVizExpanded(true);}}
-                  style={{ padding:"4px 12px", borderRadius:"3px", border:view===opt.id?`1px solid ${C.canvasBlue}`:`1px solid ${C.border}`, background:view===opt.id?"#EBF5FF":C.white, color:view===opt.id?C.canvasBlue:C.textLight, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", cursor:"pointer", fontWeight:view===opt.id?"700":"400" }}>{opt.label}</button>
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    logEvent("ui_click", { controlId: `prototype.view.${opt.id}`, label: opt.label });
+                    setView(opt.id);
+                    if (opt.id === "after") setVizExpanded(true);
+                  }}
+                  onMouseEnter={() => startUiHover(`prototype.view.${opt.id}`, { label: opt.label })}
+                  onMouseLeave={() => endUiHover(`prototype.view.${opt.id}`)}
+                  style={{ padding:"4px 12px", borderRadius:"3px", border:view===opt.id?`1px solid ${C.canvasBlue}`:`1px solid ${C.border}`, background:view===opt.id?"#EBF5FF":C.white, color:view===opt.id?C.canvasBlue:C.textLight, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", cursor:"pointer", fontWeight:view===opt.id?"700":"400" }}
+                >
+                  {opt.label}
+                </button>
               ))}
               {isStudy && (
                 <>
                   {loggingState === "idle" ? (
                     <button
                       type="button"
-                      onClick={startLogging}
+                      onClick={() => { logEvent("ui_click", { controlId: "session.logging.start", label: "Start logging" }); startLogging(); }}
                       style={{ marginLeft:"auto", background:C.canvasBlue, color:"white", border:"none", borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"700" }}
                     >
                       Start logging
@@ -2628,14 +2733,14 @@ function AppMain() {
                     <>
                       <button
                         type="button"
-                        onClick={pauseLogging}
+                        onClick={() => { logEvent("ui_click", { controlId: "session.logging.pause", label: "Pause logging" }); pauseLogging(); }}
                         style={{ marginLeft:"auto", background:"none", color:C.linkBlue, border:`1px solid ${C.borderLight}`, borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"800" }}
                       >
                         Pause
                       </button>
                       <button
                         type="button"
-                        onClick={() => { endLogging(); setShowGenomicsCode(true); }}
+                        onClick={() => { logEvent("ui_click", { controlId: "session.logging.end", label: "End logging" }); endLogging(); setShowGenomicsCode(true); }}
                         style={{ background:"none", color:"#B91C1C", border:`1px solid rgba(185,28,28,0.35)`, borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"900" }}
                       >
                         End
@@ -2646,14 +2751,14 @@ function AppMain() {
                     <>
                       <button
                         type="button"
-                        onClick={resumeLogging}
+                        onClick={() => { logEvent("ui_click", { controlId: "session.logging.resume", label: "Resume logging" }); resumeLogging(); }}
                         style={{ marginLeft:"auto", background:C.canvasBlue, color:"white", border:"none", borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"800" }}
                       >
                         Resume
                       </button>
                       <button
                         type="button"
-                        onClick={() => { endLogging(); setShowGenomicsCode(true); }}
+                        onClick={() => { logEvent("ui_click", { controlId: "session.logging.end_from_paused", label: "End logging" }); endLogging(); setShowGenomicsCode(true); }}
                         style={{ background:"none", color:"#B91C1C", border:`1px solid rgba(185,28,28,0.35)`, borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"900" }}
                       >
                         End
@@ -2663,7 +2768,7 @@ function AppMain() {
                   ) : (
                     <button
                       type="button"
-                      onClick={exportToFile}
+                      onClick={() => { logEvent("ui_click", { controlId: "session.logging.export", label: "Export log JSON" }); exportToFile(); }}
                       style={{ marginLeft:"auto", background:C.canvasBlue, color:"white", border:"none", borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"800" }}
                     >
                       Export log
@@ -2884,12 +2989,12 @@ function AppMain() {
                   </ol>
                 </div>
               )}
-              <button onClick={()=>openReply(null)} style={{ marginTop:"18px", background:C.canvasBlue, color:"white", border:"none", padding:"10px 22px", borderRadius:"5px", fontSize:"15px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"600" }}>Post</button>
+              <button type="button" onClick={() => { logEvent("ui_click", { controlId: "thread.open_reply_root", label: "Post (new reply to thread)" }); openReply(null); }} style={{ marginTop:"18px", background:C.canvasBlue, color:"white", border:"none", padding:"10px 22px", borderRadius:"5px", fontSize:"15px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"600" }}>Post</button>
               {replyState && replyingTo===null && !gapClusterId && renderReplyPanel()}
             </div>
 
             {/* Discourse Map */}
-            {view==="after" && posts.length>0 && !vizExpanded && <DiscourseMapCollapsedBar onExpand={()=>setVizExpanded(true)}/>}
+            {view==="after" && posts.length>0 && !vizExpanded && <DiscourseMapCollapsedBar onExpand={()=>setVizExpanded(true)} logEvent={logEvent} />}
             {view==="after" && posts.length>0 && vizExpanded && (
               <DiscourseMapExpanded
                 clusters={clusters}
@@ -2931,6 +3036,7 @@ function AppMain() {
                 onKeywordHoverLeave={({ keyword, clusterId, durationMs }) => {
                   logEvent("keyword_hovered", { keyword, clusterId, durationMs });
                 }}
+                logEvent={logEvent}
                 analyzing={analyzing}
                 onJumpToPost={jumpToPost}
                 onOpenFullView={()=>{
@@ -2969,6 +3075,7 @@ function AppMain() {
                     onReply={openReply}
                     onEdit={handleEditPost}
                     onDelete={handleDeletePost}
+                    logEvent={logEvent}
                     highlighted={isHighlighted}
                     refCallback={el => { postRefs.current[post.id] = el; }}
                     onMouseEnter={()=>{ if(view==="after"&&cluster) setHoveredCluster(post.clusterId); }}
@@ -2993,6 +3100,7 @@ function AppMain() {
                           onReply={openReply}
                           onEdit={handleEditPost}
                           onDelete={handleDeletePost}
+                          logEvent={logEvent}
                           highlighted={rHL}
                           refCallback={el => { postRefs.current[r.id] = el; }}
                           onMouseEnter={()=>{ if(view==="after"&&rc) setHoveredCluster(r.clusterId); }}
