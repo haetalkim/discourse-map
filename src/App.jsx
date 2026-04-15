@@ -3,7 +3,6 @@ import DiscourseMapGuide from "./DiscourseMapGuide";
 import { SessionLogProvider, SessionLogDrawer, useSessionLog } from "./session/SessionLogContext";
 import { SyntheticTestPanel } from "./dev/SyntheticTestPanel";
 import { addStudyPost, deleteStudyPost, getFirebaseAuthUid, isFirebaseEnabled, setStudyThreadConfig, subscribeToStudyPosts, subscribeToStudyThreadConfig, updateStudyPost } from "./study/firebase";
-import tcShieldWhiteUrl from "./assets/tc-shield-white.svg";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -433,7 +432,7 @@ function Sidebar() {
   return (
     <div style={{ width:"100px", minWidth:"100px", background:C.sidebarDark, padding:"14px 0", display:"flex", flexDirection:"column", color:C.white, fontFamily:"Lato,Arial,sans-serif", flexShrink:0 }}>
       <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.2)", marginBottom:10, minHeight:56, display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <img src={tcShieldWhiteUrl} alt="TC" style={{ width:"100%", maxWidth:"100%", maxHeight:48, objectFit:"contain", mixBlendMode:"screen" }} />
+        <img src={`${import.meta.env.BASE_URL}TC_Shield_White.png`} alt="TC" style={{ width:"100%", maxWidth:"100%", maxHeight:48, objectFit:"contain", mixBlendMode:"screen" }} />
       </div>
       {items.map(item => (
         <div key={item} style={{ padding:"12px 12px", fontSize:"15px", display:"flex", alignItems:"center", gap:12, background:item==="Courses"?"rgba(255,255,255,0.15)":"transparent", borderLeft:item==="Courses"?"4px solid #7BA4C7":"4px solid transparent", cursor:"pointer", color:"rgba(255,255,255,0.95)" }}>
