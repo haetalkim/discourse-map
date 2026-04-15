@@ -1799,12 +1799,12 @@ function AppMain() {
   const [studyClusterConfig, setStudyClusterConfig] = useState(() => STUDY_DEFAULT_CLUSTERS.map(({ id, label, shortLabel, x, y }) => ({ id, label, shortLabel, x, y })));
 
   const [activeAuthor, setActiveAuthor] = useState(CURRENT_USER);
-  const { logEvent, setSessionExportSnapshot, activeScenario, activePersona, setActivePersona, setActiveAuthorId, captureMode, setCaptureMode, loggingState, startLogging, pauseLogging, resumeLogging, endLogging, genomicsCode, exportToFile, addNote } = useSessionLog();
+  const { logEvent, setSessionExportSnapshot, activeScenario, activePersona, setActivePersona, activeAuthorId, setActiveAuthorId, captureMode, setCaptureMode, loggingState, startLogging, pauseLogging, resumeLogging, endLogging, genomicsCode, exportToFile, addNote, clearLog, resetSessionLogging } = useSessionLog();
   const { startUiHover, endUiHover } = useUiHoverDwell(logEvent, 450);
   const [showGenomicsCode, setShowGenomicsCode] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const logoutStudy = useCallback(() => {
-    logEvent("ui_click", { controlId: "study.change_code", label: "Change study code / logout study identity" });
+    resetSessionLogging();
     try {
       localStorage.removeItem(STUDY_IDENTITY_STORAGE_KEY);
     } catch { /* ignore */ }
@@ -1813,7 +1813,7 @@ function AppMain() {
     setStudyLoginError("");
     setActiveAuthor(CURRENT_USER);
     setActiveAuthorId(CURRENT_USER.id);
-  }, [logEvent, setActiveAuthorId]);
+  }, [resetSessionLogging, setActiveAuthorId]);
   const syntheticPanelEnabled = import.meta.env.DEV && isDemo && new URLSearchParams(window.location.search).get("synthetic") === "1";
   useEffect(() => {
     setSessionExportSnapshot({ posts, clusters });
@@ -2803,13 +2803,22 @@ function AppMain() {
                 </form>
               )}
               {isStudy && studyIdentity && (
-                <button
-                  type="button"
-                  onClick={logoutStudy}
-                  style={{ background:"none", border:"none", fontSize:"12px", color:C.linkBlue, cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}
-                >
-                  Change code
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { clearLog({ authorId: activeAuthorId }); setToast("Cleared events stamped for this participant"); }}
+                    style={{ background:"none", border:"none", fontSize:"12px", color:C.textLight, cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}
+                  >
+                    Clear my session log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={logoutStudy}
+                    style={{ background:"none", border:"none", fontSize:"12px", color:C.linkBlue, cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", textDecoration:"underline" }}
+                  >
+                    Change code
+                  </button>
+                </>
               )}
               {isStudy && (
                 <a

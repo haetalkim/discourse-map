@@ -127,7 +127,23 @@ export function SessionLogProvider({ children }) {
     appendEvent(type, payload);
   }, [appendEvent, loggingState]);
 
-  const clearLog = useCallback(() => setEvents([]), []);
+  /** Clear all events, or drop only rows stamped with `opts.authorId` (e.g. current TC id). */
+  const clearLog = useCallback((opts) => {
+    const raw = opts && typeof opts.authorId === "string" ? opts.authorId.trim() : "";
+    if (raw) {
+      setEvents((prev) => prev.filter((e) => e.authorId !== raw));
+      return;
+    }
+    setEvents([]);
+  }, []);
+
+  /** Wipe buffer and return logging to idle (e.g. study code change). */
+  const resetSessionLogging = useCallback(() => {
+    setEvents([]);
+    setLoggingState("idle");
+    setGenomicsCode(null);
+  }, []);
+
   const startLogging = useCallback(() => {
     setGenomicsCode(null);
     setEvents([]);
@@ -233,6 +249,7 @@ export function SessionLogProvider({ children }) {
       events,
       logEvent,
       clearLog,
+      resetSessionLogging,
       exportToFile,
       setSessionExportSnapshot,
       activeScenario,
@@ -251,7 +268,7 @@ export function SessionLogProvider({ children }) {
       genomicsCode,
       addNote,
     }),
-    [events, logEvent, clearLog, exportToFile, setSessionExportSnapshot, activeScenario, activePersona, activeAuthorId, captureMode, loggingState, startLogging, pauseLogging, resumeLogging, endLogging, genomicsCode, addNote],
+    [events, logEvent, clearLog, resetSessionLogging, exportToFile, setSessionExportSnapshot, activeScenario, activePersona, activeAuthorId, captureMode, loggingState, startLogging, pauseLogging, resumeLogging, endLogging, genomicsCode, addNote],
   );
 
   return (
