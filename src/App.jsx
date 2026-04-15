@@ -68,6 +68,12 @@ const STUDY_DEFAULT_CLUSTERS = [
   { id:"policy-privacy-power",  label:"Policy, Privacy\n& Power",  shortLabel:"Policy, Privacy & Power",  x:24, y:58, size:34, postIds:[], isGap:true },
 ];
 
+const STUDY_CLUSTER_ID_SET = new Set(STUDY_DEFAULT_CLUSTERS.map(c => c.id));
+
+function isStudyClusterLayout(clustersList) {
+  return Array.isArray(clustersList) && clustersList.length > 0 && clustersList.every(c => STUDY_CLUSTER_ID_SET.has(c.id));
+}
+
 function classifyStudyTextToClusters(text) {
   const t = String(text || "").toLowerCase();
   const score = (words) => words.reduce((acc, w) => (t.includes(w) ? acc + 1 : acc), 0);
@@ -241,7 +247,10 @@ function deriveStudyClustersFromConfig(configClusters, postsList) {
     const postIds = postIdsByCluster.get(c.id) || [];
     const isGap = postIds.length === 0;
     const size = Math.min(60, 34 + Math.floor(postIds.length / 2) * 4);
-    return { ...c, postIds, isGap, size };
+    const consensusWarning = !isGap && postIds.length >= 3
+      ? "Several posts align on similar angles; consider a limitation, tradeoff, or counter-view others have not raised yet."
+      : undefined;
+    return { ...c, postIds, isGap, size, consensusWarning };
   });
 }
 
@@ -331,6 +340,61 @@ const EPISTEMIC_PROMPTS = [
   { id:"bridge",    icon:"🔗", label:"Bridge two ideas",      text:"Sofia's point about media framing and David's point about AI recommendation systems seem related but haven't been connected. How might algorithmic curation interact with framing effects?", starter:"Algorithmic curation could interact with framing effects by " },
 ];
 
+/** Full View + reply panel: when no theme is selected yet (study thread). */
+const STUDY_NEUTRAL_PROMPTS = [
+  { id:"sn1", icon:"🔍", label:"Connect the readings", text:"What argument or example from this week's readings shifts how you think about AI, data, authorship, or learning? Name it and tie it to a theme on the map.", starter:"From this week's readings, one idea that changes my thinking is " },
+  { id:"sn2", icon:"⚖️", label:"Name a tension", text:"Where do ethics, creativity, data fluency, teaching design, or policy seem to pull in different directions in this thread?", starter:"One tension I see across these themes is " },
+  { id:"sn3", icon:"🔗", label:"Bridge two themes", text:"Pick two clusters and describe how a data or design choice in one area could reshape practice in the other.", starter:"Connecting two themes on the map, one relationship worth discussing is " },
+];
+
+/** Study thread gap clusters (no posts yet). */
+const STUDY_GAP_PROMPTS = [
+  { id:"sg1", icon:"🔍", label:"Seed this theme", text:"No one has posted here yet. Offer a first take that ties this week's readings to this theme.", starter:"Opening this theme from the readings, I'd argue " },
+  { id:"sg2", icon:"🔗", label:"Import another theme", text:"How could an idea that already appears elsewhere on the map extend responsibly into this gap?", starter:"Building on another theme on the map, this gap matters because " },
+  { id:"sg3", icon:"⚖️", label:"Name a design decision", text:"What instructional, technical, or governance choice would you need to make first to address this gap fairly?", starter:"One decision we'd need to make carefully here is " },
+];
+
+function studyPromptsForTheme(cluster, targetPost, postsList, clustersList) {
+  const name = targetPost?.authorName || "this classmate";
+  const others = clustersList.filter(c => c.id !== cluster.id && STUDY_CLUSTER_ID_SET.has(c.id));
+  const o1 = others[0]?.shortLabel || "another theme";
+  const o2 = others[1]?.shortLabel || "another theme";
+  switch (cluster.id) {
+    case "ethics-responsibility":
+      return [
+        { id:"er1", icon:"⚖️", label:"Trace responsibility", text:`${name} raises stakes around harm, bias, or inclusion. Where should the next responsibility land (e.g., tool design, classroom practice, institutional policy)?`, starter:`Responding to ${name}, I'd place the next responsibility with ` },
+        { id:"er2", icon:"🔍", label:"Surface a counter-case", text:"When might a thoughtful AI-assisted workflow widen participation or reduce harm compared to a purely manual workflow?", starter:"One case where careful use of AI might reduce harm or widen access is " },
+        { id:"er3", icon:"🔗", label:`Bridge to ${o1}`, text:`How does this ethics thread connect to ${o1} in this week's discussion?`, starter:`Linking ethics to ${o1}, one connection I see is ` },
+      ];
+    case "creativity-agency":
+      return [
+        { id:"ca1", icon:"🔍", label:"Authorial voice", text:`How does ${name}'s post balance human authorship with automation or suggestion systems in creative work?`, starter:`Building on ${name}, I see authorship and automation interacting as ` },
+        { id:"ca2", icon:"⚖️", label:"Name a tradeoff", text:"What do we gain or lose when creative workflows lean on generative tools for drafting, structure, or iteration?", starter:"One tradeoff when generative tools enter creative workflows is " },
+        { id:"ca3", icon:"🔗", label:`Bridge to ${o2}`, text:`How might creativity and agency intersect with ${o2} in this thread?`, starter:`Connecting creativity/agency to ${o2}, one through-line is ` },
+      ];
+    case "data-literacy":
+      return [
+        { id:"dl1", icon:"🔍", label:"Evidence and uncertainty", text:`${name} touches on data, visualization, or interpretation. What would it take for readers to trust this claim—or to see its limits?`, starter:`Following ${name}, one way to make evidence clearer (or uncertainty visible) is ` },
+        { id:"dl2", icon:"🔗", label:"Automation in the loop", text:"Where could automated charting, layout, or recommendations help—or mislead—people interpreting multimodal stories?", starter:"Automation might help interpretation when it " },
+        { id:"dl3", icon:"⚖️", label:"Ethical visualization", text:`How could choices about metrics, scales, or defaults in ${cluster.shortLabel} steer audiences toward fair or unfair conclusions?`, starter:"One ethical risk in how we present this data is " },
+      ];
+    case "teaching-learning":
+      return [
+        { id:"tl1", icon:"🔍", label:"Pedagogy in practice", text:`What concrete teaching move (prompt design, feedback, rubric, facilitation) does ${name}'s idea suggest?`, starter:`Translating ${name}'s idea into practice, I would try ` },
+        { id:"tl2", icon:"🔗", label:"Iterate with students", text:"How would you design revision or dialogue so students learn from AI assistance without outsourcing their thinking?", starter:"To keep thinking with students while using AI, I would " },
+        { id:"tl3", icon:"⚖️", label:"Equity check", text:"Who might be advantaged or disadvantaged by this instructional pattern—and what would you adjust?", starter:"One equity concern this pattern raises is " },
+      ];
+    case "policy-privacy-power":
+      return [
+        { id:"pp1", icon:"⚖️", label:"Governance lever", text:`${name} implicates rules, platforms, or power. Which policy or norm would you change first—and why?`, starter:`Building on ${name}, the first lever I'd adjust is ` },
+        { id:"pp2", icon:"🔍", label:"Privacy and consent", text:"What should students or instructors know about data retention, reuse, or third-party tools before adopting a workflow?", starter:"Before adopting this workflow, people should understand that " },
+        { id:"pp3", icon:"🔗", label:`Link to ${o1}`, text:`How does this policy thread relate to ${o1} for your context?`, starter:`Connecting policy to ${o1}, one dependency I see is ` },
+      ];
+    default:
+      return STUDY_NEUTRAL_PROMPTS;
+  }
+}
+
 const FIRST_POST_PROMPTS = [
   { id:"fp1", icon:"🔍", label:"Connect the readings",     text:"What idea from this week's readings stood out to you? Summarize it briefly and say why it matters for how you think about technology and cognition.", starter:"One idea from the readings that stood out to me is " },
   { id:"fp2", icon:"⚖️", label:"Share an experience",      text:"Describe a concrete experience from your own media use, learning, or work that connects to the themes of the module.", starter:"A concrete experience from my own life that connects to this module is " },
@@ -346,9 +410,13 @@ function postBelongsToCluster(post, clusterId) {
 }
 
 function getContextualPrompts(targetPost, clustersList = INITIAL_CLUSTERS, postsList = INITIAL_POSTS) {
-  if (!targetPost) return EPISTEMIC_PROMPTS;
+  const studyLayout = isStudyClusterLayout(clustersList);
+  if (!targetPost) return studyLayout ? STUDY_NEUTRAL_PROMPTS : EPISTEMIC_PROMPTS;
   const cluster = clustersList.find(c => c.id === targetPost.clusterId);
-  if (!cluster) return EPISTEMIC_PROMPTS;
+  if (!cluster) return studyLayout ? STUDY_NEUTRAL_PROMPTS : EPISTEMIC_PROMPTS;
+  if (studyLayout && STUDY_CLUSTER_ID_SET.has(cluster.id)) {
+    return studyPromptsForTheme(cluster, targetPost, postsList, clustersList);
+  }
   const name = targetPost.authorName;
   const sofia = postsList.find(p => p.authorId === "sofia");
   const david = postsList.find(p => p.authorId === "david");
@@ -995,9 +1063,29 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
   const nonGaps    = clusters.filter(c => !c.isGap);
   const gaps       = clusters.filter(c => c.isGap);
   const getClById  = id => clusters.find(c => c.id === id);
-  const workspacePrompts = activeCl && !activeCl.isGap
-    ? getContextualPrompts(posts.find(p => activeCl.postIds.includes(p.id)) || null, clusters, posts)
-    : EPISTEMIC_PROMPTS;
+  const isStudyUI  = isStudyClusterLayout(clusters);
+  const workspacePrompts = (() => {
+    if (!activeCl) return isStudyUI ? STUDY_NEUTRAL_PROMPTS : EPISTEMIC_PROMPTS;
+    if (activeCl.isGap) return isStudyUI ? STUDY_GAP_PROMPTS : GAP_PROMPTS;
+    return getContextualPrompts(
+      posts.find(p => activeCl.postIds.includes(p.id)) || null,
+      clusters,
+      posts,
+    );
+  })();
+  const healthTiles = isStudyUI
+    ? [
+        { n: nonGaps.length, label: "Active themes", color: A.green, hint: "Themes with at least one post in this thread (from live posts on the map)." },
+        { n: gaps.length, label: "Unexplored gaps", color: A.orange, hint: "Themes with no posts yet for this assignment." },
+        { n: connections.filter(c => c.strength === "underexplored").length, label: "Weak bridges", color: A.orange, hint: "Theme pairs with few posts bridging both ideas (computed from this thread)." },
+        { n: clusters.filter(c => c.consensusWarning).length, label: "Similar-angle themes", color: A.red, hint: "Themes with several posts where a counter-view, limitation, or tradeoff may be useful." },
+      ]
+    : [
+        { n: nonGaps.length, label: "Active themes", color: A.green, hint: "Clusters on the map that already have student posts." },
+        { n: gaps.length, label: "Unexplored gaps", color: A.orange, hint: "Theme areas with no posts yet (instructor-seeded gaps)." },
+        { n: connections.filter(c => c.strength === "underexplored").length, label: "Weak connections", color: A.orange, hint: "Links between themes marked as underexplored in this prototype (few posts bridging those ideas)." },
+        { n: clusters.filter(c => c.consensusWarning).length, label: "Consensus risks", color: A.red, hint: "Clusters where the mock data flags similar views and missing counter-perspectives." },
+      ];
 
   const saveNotesToStorage = () => {
     try {
@@ -1308,25 +1396,28 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
             <div style={{ padding:"11px 12px", borderBottom:`0.5px solid ${A.separator}` }}>
               <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:8 }}>Discussion Health</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
-                {[
-                  { n:nonGaps.length,                                             label:"Active themes",    color:A.green,  hint:"Clusters on the map that already have student posts." },
-                  { n:gaps.length,                                                label:"Unexplored gaps",  color:A.orange, hint:"Theme areas with no posts yet (instructor-seeded gaps)." },
-                  { n:connections.filter(c=>c.strength==="underexplored").length, label:"Weak connections", color:A.orange, hint:"Links between themes marked as underexplored in this prototype (few posts bridging those ideas)." },
-                  { n:clusters.filter(c=>c.consensusWarning).length,              label:"Consensus risks",  color:A.red,    hint:"Clusters where the mock data flags similar views and missing counter-perspectives." },
-                ].map((s,i)=>(
+                {healthTiles.map((s,i)=>(
                   <div key={i} title={s.hint} style={{ background:A.panel, borderRadius:"9px", border:`0.5px solid ${A.separator}`, padding:"8px 9px", cursor:"help" }}>
                     <div style={{ fontSize:"24px", fontWeight:"200", color:s.color, lineHeight:1, marginBottom:2, letterSpacing:"-0.5px" }}>{s.n}</div>
                     <div style={{ fontSize:"9.5px", color:A.label3, lineHeight:1.3 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize:"9px", color:A.label4, marginTop:8, lineHeight:1.45 }}>Hover a tile for definitions. Counts are illustrative for this prototype, not live AI analytics.</div>
+              <div style={{ fontSize:"9px", color:A.label4, marginTop:8, lineHeight:1.45 }}>
+                {isStudyUI
+                  ? "Hover a tile for definitions. Counts follow this thread's posts and theme layout (not a separate AI analytics engine)."
+                  : "Hover a tile for definitions. Counts are illustrative for this prototype, not live AI analytics."}
+              </div>
             </div>
 
             {/* Writing Angles */}
             <div style={{ padding:"11px 12px", borderBottom:`0.5px solid ${A.separator}` }}>
               <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:4 }}>Writing Angles</div>
-              <div style={{ fontSize:"9px", color:A.label4, marginBottom:8, lineHeight:1.4 }}>Prototype: static prompts per theme (not generated by AI). Items update when you select a different theme.</div>
+              <div style={{ fontSize:"9px", color:A.label4, marginBottom:8, lineHeight:1.4 }}>
+                {isStudyUI
+                  ? "Scaffolds match the Week 12 study themes and classmates' posts. Not generated by AI; refresh when you change themes."
+                  : "Prototype: static prompts per theme (not generated by AI). Items update when you select a different theme."}
+              </div>
               {workspacePrompts.map(p => {
                 const isAct = activePrompt?.id === p.id;
                 const iconSvgs = {
