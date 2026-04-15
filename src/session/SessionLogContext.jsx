@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getOrCreateBridgeId, logChannelName, readFullViewLogMeta, writeFullViewLogMeta } from "./logBroadcast";
+import { SESSION_LOG_TIMEZONE, sessionLogInstant, eventDisplayTimeEastern, easternLabelFromIso } from "./logTimestamp";
 
 const SessionLogContext = createContext(null);
 
@@ -24,9 +25,8 @@ export function SessionLogRelayProvider({ bridgeId, children }) {
     if (!ch || !bridgeId) return;
     const meta = readFullViewLogMeta();
     if (!meta) return;
-    const ts = new Date().toISOString();
     const event = {
-      ts,
+      ...sessionLogInstant(),
       type,
       payload,
       scenario: meta.activeScenario,
@@ -99,11 +99,10 @@ export function SessionLogProvider({ children }) {
   const exportSnapshotRef = useRef({ posts: [], clusters: [] });
 
   const appendEvent = useCallback((type, payload = {}) => {
-    const ts = new Date().toISOString();
     setEvents(prev => [
       ...prev,
       {
-        ts,
+        ...sessionLogInstant(),
         type,
         payload,
         scenario: activeScenario,
@@ -205,13 +204,14 @@ export function SessionLogProvider({ children }) {
   }, []);
 
   const exportToFile = useCallback(() => {
-    const exportedAt = new Date().toISOString();
+    const { ts: exportedAt, tsEastern: exportedAtEastern } = sessionLogInstant();
     const { posts, clusters } = exportSnapshotRef.current;
     const orderedEvents = events.map((e) => ({
       scenario: e.scenario,
       persona: e.persona,
       authorId: e.authorId,
       ts: e.ts,
+      tsEastern: e.tsEastern ?? easternLabelFromIso(e.ts),
       type: e.type,
       payload: e.payload ?? {},
     }));
@@ -221,10 +221,14 @@ export function SessionLogProvider({ children }) {
       authorId: activeAuthorId,
       genomicsCode,
       exportedAt,
+      exportedAtEastern,
+      logTimezone: SESSION_LOG_TIMEZONE,
+      logTimezoneNote: "ts / exportedAt are UTC (ISO 8601). tsEastern / exportedAtEastern are wall time in logTimezone (US Eastern: EST or EDT by date).",
       eventCount: events.length,
       events: orderedEvents,
       snapshot: {
         timestamp: exportedAt,
+        timestampEastern: exportedAtEastern,
         scenarioId: activeScenario,
         personaId: activePersona,
         posts,
@@ -366,13 +370,16 @@ export function SessionLogDrawer() {
               boxShadow: "0 -8px 24px rgba(0,0,0,0.2)",
             }}
           >
-            <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid #334155", flexShrink: 0 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #334155", flexShrink: 0 }}>
               <button type="button" onClick={exportToFile} style={{ padding: "4px 10px", fontSize: 11, cursor: "pointer", borderRadius: 4, border: "1px solid #475569", background: "#1e293b", color: "#e2e8f0" }}>
                 Export JSON
               </button>
               <button type="button" onClick={clearLog} style={{ padding: "4px 10px", fontSize: 11, cursor: "pointer", borderRadius: 4, border: "1px solid #475569", background: "#1e293b", color: "#e2e8f0" }}>
                 Clear
               </button>
+              <span style={{ fontSize: 9, color: "#64748b", flex: "1 1 140px" }} title="JSON `ts` fields are UTC; list times are US Eastern (EST/EDT).">
+                Times: US Eastern · JSON `ts` = UTC
+              </span>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
               {events.length === 0 ? (
@@ -382,7 +389,7 @@ export function SessionLogDrawer() {
                   const cid = e.payload?.controlId;
                   return (
                     <div key={i} style={{ marginBottom: 6, lineHeight: 1.35, wordBreak: "break-word" }}>
-                      <span style={{ color: "#94a3b8" }}>{e.ts.slice(11, 23)}</span>{" "}
+                      <span style={{ color: "#94a3b8" }}>{eventDisplayTimeEastern(e)}</span>{" "}
                       <span style={{ color: "#38bdf8" }}>{e.type}</span>
                       {cid && (
                         <span style={{ color: "#fbbf24", fontWeight: 600 }}> {String(cid)}</span>
