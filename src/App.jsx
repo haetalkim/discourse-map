@@ -4,6 +4,14 @@ import { SessionLogProvider, SessionLogRelayProvider, SessionLogDrawer, useSessi
 import { getOrCreateBridgeId } from "./session/logBroadcast";
 import { SyntheticTestPanel } from "./dev/SyntheticTestPanel";
 import { addStudyPost, deleteStudyPost, isFirebaseEnabled, setStudyThreadConfig, subscribeFirebaseAuthUid, subscribeToStudyPosts, subscribeToStudyThreadConfig, updateStudyPost } from "./study/firebase";
+import {
+  loadDiscussionTemplate,
+  loadTeacherSettings,
+  normalizeTeacherSettings,
+  saveDiscussionTemplate,
+  saveTeacherSettings,
+  visualClusterSizeFromPostCount,
+} from "./teacherSettings";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -246,7 +254,7 @@ function deriveStudyClustersFromConfig(configClusters, postsList) {
   return base.map(c => {
     const postIds = postIdsByCluster.get(c.id) || [];
     const isGap = postIds.length === 0;
-    const size = Math.min(60, 34 + Math.floor(postIds.length / 2) * 4);
+    const size = visualClusterSizeFromPostCount(postIds.length, isGap);
     const consensusWarning = !isGap && postIds.length >= 3
       ? "Several posts align on similar angles; consider a limitation, tradeoff, or counter-view others have not raised yet."
       : undefined;
@@ -640,6 +648,38 @@ function DiscourseMapCollapsedBar({ onExpand, logEvent }) {
   );
 }
 
+/** Richer “discussion health” cue: theme coverage ring + short narrative. */
+function DiscourseHealthMeter({ clusters, connections }) {
+  const nonGaps = clusters.filter(c => !c.isGap);
+  const filled = nonGaps.filter(c => (c.postIds || []).length > 0).length;
+  const total = Math.max(1, nonGaps.length);
+  const pct = Math.round((filled / total) * 100);
+  const under = (connections || []).filter(c => c.strength === "underexplored").length;
+  const gaps = clusters.filter(c => c.isGap).length;
+  const risk = clusters.filter(c => c.consensusWarning).length;
+  return (
+    <div style={{ display:"flex", gap:16, alignItems:"center", flexWrap:"wrap", background:"#F8FAFC", border:`1px solid ${C.borderLight}`, borderRadius:"8px", padding:"12px 16px", fontFamily:"Lato,Arial,sans-serif" }}>
+      <div style={{ position:"relative", width:84, height:84, flexShrink:0 }}>
+        <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:`conic-gradient(${C.vizGreen} ${pct}%, #E5E7EB 0)` }} title={`${filled}/${nonGaps.length} themes have posts`} />
+        <div style={{ position:"absolute", inset:10, borderRadius:"50%", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", boxShadow:"inset 0 0 0 1px rgba(0,0,0,0.04)" }}>
+          <span style={{ fontSize:20, fontWeight:900, color:C.text, lineHeight:1 }}>{pct}%</span>
+          <span style={{ fontSize:9, color:C.textLight, fontWeight:700, letterSpacing:"0.04em" }}>COVER</span>
+        </div>
+      </div>
+      <div style={{ flex:1, minWidth:200 }}>
+        <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:4 }}>Theme coverage</div>
+        <div style={{ fontSize:12, color:C.textLight, lineHeight:1.55 }}>
+          <strong style={{ color:C.text }}>{filled}</strong> of <strong style={{ color:C.text }}>{nonGaps.length}</strong> themes have at least one post
+          {gaps > 0 && <span>{` · ${gaps} gap${gaps === 1 ? "" : "s"} still open`}</span>}
+          {under > 0 && <span>{` · ${under} weak bridge${under === 1 ? "" : "s"}`}</span>}
+          {risk > 0 && <span>{` · ${risk} “similar angle” flag${risk === 1 ? "" : "s"}`}</span>}
+          .
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Health Summary ───────────────────────────────────────────────────────────
 function DiscourseHealthSummary({ clusters }) {
   const gapCount       = clusters.filter(c => c.isGap).length;
@@ -683,6 +723,8 @@ function DiscourseMapExpanded({
   keywords = KEYWORDS,
   selectedConnectionKey = null,
   isStudy = false,
+  gapPins = {},
+  discussionHealthStyle = "tiles",
   logEvent: logEv,
 }) {
   const log = typeof logEv === "function" ? logEv : () => {};
@@ -916,6 +958,7 @@ function DiscourseMapExpanded({
                 });
                 const isNew   = cl.isNew;
                 const outerR  = cl.size * 0.9, midR = cl.size * 0.55, coreR = active ? cl.size*0.33 : cl.size*0.28;
+                const gapPin  = gapPins?.[cl.id];
 
                 if (cl.isGap) {
                   return (
@@ -937,6 +980,9 @@ function DiscourseMapExpanded({
                     >
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={outerR} fill="none" stroke="#94A3B8" strokeWidth={active?2:1.5} strokeDasharray="9 6" opacity={active?0.8:0.45} style={{animation:"gapSpin 6s linear infinite"}}/>
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={midR} fill="#94A3B8" fillOpacity={active?0.1:0.05}/>
+                      {gapPin && (
+                        <text x={`${cl.x}%`} y={`${cl.y - 5}%`} textAnchor="middle" dominantBaseline="middle" fill="#CA8A04" fontSize="15" fontWeight="800" style={{ pointerEvents:"none" }}>★</text>
+                      )}
                       {/* Subtle "click me" hint on hover */}
                       {active && <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={outerR+4} fill="none" stroke="#0374B5" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4"/>}
                       <text x={`${cl.x}%`} y={`${cl.y-1.5}%`} textAnchor="middle" dominantBaseline="middle" fill="#94A3B8" fontSize="20" fontFamily="Lato,Arial,sans-serif" opacity={active?1:0.65}>?</text>
@@ -1082,15 +1128,25 @@ function DiscourseMapExpanded({
           const cl = getClusterById(selectedCluster);
           if (!cl) return null;
           const cc = CLUSTER_COLORS[cl.id];
-          if (cl.isGap) return (
+          if (cl.isGap) {
+            const pin = gapPins?.[cl.id];
+            return (
             <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
-              <div style={{ width:38, height:38, borderRadius:"50%", border:"2px dashed #94A3B8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px", flexShrink:0 }}>💡</div>
+              <div style={{ width:38, height:38, borderRadius:"50%", border:"2px dashed #94A3B8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px", flexShrink:0 }}>{pin ? "★" : "💡"}</div>
               <div>
-                <div style={{ fontSize:"14px", fontWeight:"700", color:C.text, fontFamily:"Lato,Arial,sans-serif", marginBottom:4 }}>This area hasn't been explored yet.</div>
-                <div style={{ fontSize:"12px", color:C.textLight, fontFamily:"Lato,Arial,sans-serif", lineHeight:1.6 }}>Be the first to contribute! Consider: How might understanding cognitive biases inform teaching or instructional design?</div>
+                <div style={{ fontSize:"14px", fontWeight:"700", color:C.text, fontFamily:"Lato,Arial,sans-serif", marginBottom:4 }}>This area hasn&apos;t been explored yet.</div>
+                {pin ? (
+                  <div style={{ fontSize:"12px", color:C.text, fontFamily:"Lato,Arial,sans-serif", lineHeight:1.65, whiteSpace:"pre-wrap", background:"#FFFBEB", border:`1px solid #FDE68A`, borderRadius:"8px", padding:"10px 12px", marginBottom:6 }}>
+                    <span style={{ fontSize:"10px", fontWeight:900, color:"#A16207", letterSpacing:"0.06em" }}>INSTRUCTOR</span>
+                    <div style={{ marginTop:4 }}>{pin}</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize:"12px", color:C.textLight, fontFamily:"Lato,Arial,sans-serif", lineHeight:1.6 }}>Be the first to contribute! Consider: How might understanding cognitive biases inform teaching or instructional design?</div>
+                )}
               </div>
             </div>
           );
+          }
           const clPosts = discussionPosts.filter(p => cl.postIds.includes(p.id));
           const related = connections.filter(c=>c.from===cl.id||c.to===cl.id).map(c=>getClusterById(c.from===cl.id?c.to:c.from)).filter(Boolean);
           return (
@@ -1130,7 +1186,14 @@ function DiscourseMapExpanded({
             </div>
           );
         })()
-        : <DiscourseHealthSummary clusters={clusters}/>}
+        : discussionHealthStyle === "rings" ? (
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <DiscourseHealthMeter clusters={clusters} connections={connections} />
+            <DiscourseHealthSummary clusters={clusters} />
+          </div>
+        ) : (
+          <DiscourseHealthSummary clusters={clusters} />
+        )}
       </div>
 
       {/* My Posts toggle */}
@@ -1145,7 +1208,9 @@ function DiscourseMapExpanded({
 }
 
 // ─── Full Map View (SAIL-inspired 3-panel overlay) ───────────────────────────
-function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, connections = CONNECTIONS, keywords = KEYWORDS }) {
+function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, connections = CONNECTIONS, keywords = KEYWORDS, teacherSettings: teacherSettingsProp = null }) {
+  const T = normalizeTeacherSettings(teacherSettingsProp);
+  const gapPins = T.gapPins || {};
   const sessionLog = useSessionLogOptional();
   const { startUiHover: fvHStart, endUiHover: fvHEnd } = useUiHoverDwell(sessionLog?.logEvent, 450);
   const clusterHoverAt = useRef({});
@@ -1381,6 +1446,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                   const cc=CLUSTER_COLORS[cl.id]||{base:"#8E8E93",light:"#C7C7CC",glow:"rgba(142,142,147,0.25)"};
                   const isSel=selectedCluster===cl.id, isHov=hoveredCluster===cl.id, active=isSel||isHov;
                   const coreR=active?cl.size*0.32:cl.size*0.27;
+                  const gapPin = gapPins[cl.id];
 
                   if(cl.isGap) return (
                     <g key={cl.id} style={{cursor:"pointer",animation:`clIn 0.45s ${idx*0.055}s both`}}
@@ -1389,6 +1455,9 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                       onMouseLeave={()=>{ setHoveredCluster(null); logClusterHoverEnd(cl.id, true); }}>
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={cl.size*0.86} fill="white" fillOpacity={active?0.5:0.3}/>
                       <circle cx={`${cl.x}%`} cy={`${cl.y}%`} r={cl.size*0.86} fill="none" stroke="#8E8E93" strokeWidth="1.5" strokeDasharray="7 5" style={{animation:"gapSpin 7s linear infinite"}} opacity={active?0.7:0.4}/>
+                      {gapPin && (
+                        <text x={`${cl.x}%`} y={`${cl.y - 5}%`} textAnchor="middle" dominantBaseline="middle" fill="#CA8A04" fontSize="14" fontWeight="800" style={{ pointerEvents:"none" }}>★</text>
+                      )}
                       <text x={`${cl.x}%`} y={`${cl.y-1}%`} textAnchor="middle" dominantBaseline="middle" fill="#8E8E93" fontSize="16" opacity={active?0.9:0.55}>?</text>
                       {cl.label.split("\n").map((ln,j)=><text key={j} x={`${cl.x}%`} y={`${cl.y+6+j*11}%`} textAnchor="middle" fill={active?"#6C6C70":"#8E8E93"} fontSize="9.5" fontFamily="-apple-system,Lato,sans-serif" fontStyle="italic" opacity={active?0.9:0.55}>{ln}</text>)}
                     </g>
@@ -1453,6 +1522,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
               const cc     = CLUSTER_COLORS[cl.id]||{base:"#8E8E93",light:"#C7C7CC"};
               const clPosts= posts.filter(p => cl.postIds.includes(p.id));
               const isSel  = selectedCluster === cl.id;
+              const gapPin = gapPins[cl.id];
 
               // Avatar palette — deterministic per author
               const avatarPalette = [
@@ -1474,6 +1544,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                     onMouseLeave={e=>{ if(!isSel) e.currentTarget.style.background="transparent"; }}>
                     <div style={{ width:8, height:8, borderRadius:"50%", background:cl.isGap?"transparent":cc.base, border:cl.isGap?`1.5px dashed ${A.label4}`:"none", opacity:cl.isGap?0.55:1, flexShrink:0 }}/>
                     <span style={{ fontSize:"11.5px", fontWeight:cl.isGap?"400":"600", color:cl.isGap?A.label3:A.label, flex:1, lineHeight:1.2 }}>{cl.shortLabel}</span>
+                    {gapPin && <span title="Instructor note on this gap" style={{ fontSize:"9px", fontWeight:"800", color:"#B45309", background:"#FEF3C7", borderRadius:"6px", padding:"1px 5px", flexShrink:0 }}>★</span>}
                     <span style={{ fontSize:"11.5px", color:isSel?cc.base:A.label3, fontWeight:isSel?"600":"400" }}>{cl.isGap?"Gap":cl.postIds.length}</span>
                     <span style={{ fontSize:"8.5px", color:A.label3, marginLeft:1 }}>{isSel?"▼":"›"}</span>
                   </div>
@@ -1502,8 +1573,14 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
 
                   {/* Gap state */}
                   {isSel && cl.isGap && (
-                    <div style={{ padding:"10px 12px", background:`rgba(0,122,255,0.03)`, textAlign:"center" }}>
-                      <div style={{ fontSize:"11px", color:A.label4, marginBottom:8 }}>No posts yet in this area</div>
+                    <div style={{ padding:"10px 12px", background:`rgba(0,122,255,0.03)`, textAlign:"left" }}>
+                      {gapPin && (
+                        <div style={{ fontSize:"11px", color:A.label, lineHeight:1.5, marginBottom:10, padding:"8px 10px", background:"#FFFBEB", border:`0.5px solid #FDE68A`, borderRadius:"8px" }}>
+                          <div style={{ fontSize:"9px", fontWeight:"800", color:"#B45309", letterSpacing:"0.06em", marginBottom:4 }}>INSTRUCTOR</div>
+                          <div style={{ whiteSpace:"pre-wrap" }}>{gapPin}</div>
+                        </div>
+                      )}
+                      <div style={{ fontSize:"11px", color:A.label4, marginBottom:8, textAlign:"center" }}>No posts yet in this area</div>
                       {isNewTab
                         ? <span style={{ fontSize:"11px", color:A.label4, fontStyle:"italic" }}>Return to Canvas to contribute</span>
                         : <button onClick={e=>{e.stopPropagation();onOpenReply(null,cl.id,"");onClose();}}
@@ -1554,13 +1631,20 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
             {workspaceOpen && <span style={{ width:28 }}/>}
           </div>
           {workspaceOpen && <div style={{ padding:"5px 12px", borderBottom:`0.5px solid ${A.separator}`, fontSize:"10.5px", color:A.label3, flexShrink:0 }}>
-            {activeCl ? `Writing angles for: ${activeCl.shortLabel}` : "Select a theme for writing angles"}
+            {T.writingAnglesEnabled
+              ? (activeCl ? `Writing angles for: ${activeCl.shortLabel}` : "Select a theme for writing angles")
+              : "Writing angles are off (teacher settings)"}
           </div>}
           <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", display:workspaceOpen?"block":"none" }}>
 
             {/* Discussion Health */}
             <div style={{ padding:"11px 12px", borderBottom:`0.5px solid ${A.separator}` }}>
               <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:8 }}>Discussion Health</div>
+              {T.discussionHealthStyle === "rings" && (
+                <div style={{ marginBottom:10 }}>
+                  <DiscourseHealthMeter clusters={clusters} connections={connections} />
+                </div>
+              )}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
                 {healthTiles.map((s,i)=>(
                   <div key={i} title={s.hint} style={{ background:A.panel, borderRadius:"9px", border:`0.5px solid ${A.separator}`, padding:"8px 9px", cursor:"help" }}>
@@ -1577,6 +1661,7 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
             </div>
 
             {/* Writing Angles */}
+            {T.writingAnglesEnabled ? (
             <div style={{ padding:"11px 12px", borderBottom:`0.5px solid ${A.separator}` }}>
               <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:4 }}>Writing Angles</div>
               <div style={{ fontSize:"9px", color:A.label4, marginBottom:8, lineHeight:1.4 }}>
@@ -1650,22 +1735,26 @@ function FullMapView({ clusters, posts, onClose, onOpenReply, isNewTab = false, 
                 );
               })}
             </div>
+            ) : (
+            <div style={{ padding:"11px 12px", borderBottom:`0.5px solid ${A.separator}` }}>
+              <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:6 }}>Writing Angles</div>
+              <p style={{ margin:0, fontSize:"11px", color:A.label4, lineHeight:1.5 }}>Your instructor turned off Writing Angles for this view. You can still explore themes and post in Canvas.</p>
+            </div>
+            )}
 
             {/* Instructor note */}
+            {T.instructorNoteEnabled ? (
             <div style={{ padding:"11px 12px", borderTop:`0.5px solid ${A.separator}` }}>
               <div style={{ fontSize:"9.5px", fontWeight:"700", letterSpacing:"0.8px", color:A.label3, textTransform:"uppercase", marginBottom:6 }}>Instructor note</div>
               <div style={{ background:"linear-gradient(180deg, rgba(175,82,222,0.06) 0%, rgba(0,122,255,0.04) 100%)", border:`0.5px solid ${A.separator}`, borderRadius:"10px", padding:"10px 11px" }}>
-                <p style={{ margin:"0 0 8px", fontSize:"12px", fontWeight:"600", color:A.label, lineHeight:1.45 }}>
-                  What impacts do you see with artificial intelligence and data storytelling?
-                </p>
-                <p style={{ margin:"0 0 8px", fontSize:"11px", color:A.label2, lineHeight:1.5 }}>
-                  There are no right or wrong answers. AI-assisted storytelling with data is still taking shape—explore openly.
-                </p>
-                <p style={{ margin:0, fontSize:"10.5px", color:A.label3, lineHeight:1.5 }}>
-                  How might data storytelling change or expand with AI? Do you think that is a good direction—or not? Do you foresee AI being able to connect with the emotions of an audience? Use the map to anchor your ideas in this week’s themes and your classmates’ posts where it helps.
-                </p>
+                {(T.instructorNoteText || "").split(/\n\s*\n/).filter((x) => String(x).trim()).map((para, i) => (
+                  <p key={i} style={{ margin: i === 0 ? "0 0 8px" : "0 0 8px", fontSize: i === 0 ? "12px" : "10.5px", fontWeight: i === 0 ? 600 : 400, color: i === 0 ? A.label : A.label3, lineHeight:1.5 }}>
+                    {renderInlineBold(para.trim())}
+                  </p>
+                ))}
               </div>
             </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1835,8 +1924,10 @@ export default function App() {
   if (isFullViewTab) {
     const rawClusters = sessionStorage.getItem("dm_fullview_clusters");
     const rawPosts    = sessionStorage.getItem("dm_fullview_posts");
+    const rawTeacher  = sessionStorage.getItem("dm_fullview_teacher_settings");
     const tabClusters = rawClusters ? JSON.parse(rawClusters) : INITIAL_CLUSTERS;
     const tabPosts    = rawPosts    ? JSON.parse(rawPosts)    : INITIAL_POSTS;
+    const tabTeacherSettings = rawTeacher ? normalizeTeacherSettings(JSON.parse(rawTeacher)) : loadTeacherSettings();
     const isStudyLike = Array.isArray(tabClusters) && tabClusters.some(c => String(c?.id || "").includes("ethics-responsibility"));
     const tabConnections = isStudyLike ? deriveStudyConnections(tabPosts, tabClusters) : [];
     const tabKeywords = isStudyLike ? deriveStudyKeywords(tabPosts, tabClusters) : [];
@@ -1849,6 +1940,7 @@ export default function App() {
         connections={tabConnections}
         keywords={tabKeywords}
         isNewTab={true}
+        teacherSettings={tabTeacherSettings}
       />
     );
     return logBridgeId ? <SessionLogRelayProvider bridgeId={logBridgeId}>{full}</SessionLogRelayProvider> : full;
@@ -1903,6 +1995,7 @@ function AppMain() {
   const [useGlobalPrompts,     setUseGlobalPrompts]     = useState(false);
   const [hiddenReplyRoots,     setHiddenReplyRoots]     = useState(() => new Set());
   const [discussionPrompt,     setDiscussionPrompt]     = useState(() => ({ ...DISCUSSION_PROMPT }));
+  const [teacherSettings, setTeacherSettings] = useState(() => loadTeacherSettings());
 
   // ── Dynamic state for features 3 & 4 ──
   const [posts,     setPosts]     = useState(INITIAL_POSTS);
@@ -1914,6 +2007,9 @@ function AppMain() {
   const { startUiHover, endUiHover } = useUiHoverDwell(logEvent, 450);
   const [showGenomicsCode, setShowGenomicsCode] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
+  useEffect(() => {
+    saveTeacherSettings(teacherSettings);
+  }, [teacherSettings]);
   const logoutStudy = useCallback(() => {
     resetSessionLogging();
     try {
@@ -1970,10 +2066,14 @@ function AppMain() {
         unsub = await subscribeToStudyThreadConfig({
           ...STUDY_FIREBASE_IDS,
           onConfig: (cfg) => {
+            if (!cfg) return;
+            if (cfg.teacherSettings && typeof cfg.teacherSettings === "object") {
+              setTeacherSettings(normalizeTeacherSettings(cfg.teacherSettings));
+            }
             const next = Array.isArray(cfg?.clusters) && cfg.clusters.length > 0 ? cfg.clusters : null;
             if (!next) return;
             setStudyClusterConfig(next);
-            setClusters(cur => deriveStudyClustersFromConfig(next, posts));
+            setClusters((cur) => deriveStudyClustersFromConfig(next, posts));
           },
           onError: (err) => logEvent("firebase_posts_error", { message: String(err?.message || err) }),
         });
@@ -2465,7 +2565,7 @@ function AppMain() {
           postIds: [...cl.postIds, newId],
           isGap: false,
           isNew: wasGap,
-          size: wasGap ? 28 : Math.min((cl.size || 30) + 3, 60),
+          size: wasGap ? visualClusterSizeFromPostCount(0, true) : visualClusterSizeFromPostCount(cl.postIds.length + 1, false),
         };
       });
     });
@@ -2953,6 +3053,82 @@ function AppMain() {
               <div style={{ background:C.white, border:`1px solid ${C.borderLight}`, borderRadius:"6px", padding:"20px 24px", marginBottom:"20px", borderLeft:`4px solid ${C.canvasBlue}` }}>
                 <h3 style={{ margin:"0 0 8px", fontSize:"17px", color:C.text, fontFamily:"Lato,Arial,sans-serif" }}>Teacher mode (prototype)</h3>
                 <p style={{ fontSize:"13px", color:C.textLight, margin:"0 0 16px", lineHeight:1.5, fontFamily:"Lato,Arial,sans-serif" }}>Edit the discussion framing and theme labels. Switch to &quot;With DiscourseMap&quot; to preview the student view.</p>
+                <div id="teacher-settings" style={{ marginBottom:20, padding:16, background:"#F1F5F9", borderRadius:"8px", border:`1px solid ${C.borderLight}` }}>
+                  <div style={{ fontSize:"14px", fontWeight:"900", color:C.text, marginBottom:10, fontFamily:"Lato,Arial,sans-serif" }}>Map &amp; Full View settings</div>
+                  <div style={{ fontSize:"12px", color:C.textLight, marginBottom:12, lineHeight:1.5 }}>Control what students see in the embedded map and in Full View (writing angles, instructor note, health visuals). Settings save to this browser; in Study + Firebase they also sync with &quot;Save class setup&quot;.</div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:"12px", fontWeight:"800", color:C.text, marginBottom:6 }}>Theme configuration</div>
+                    <label style={{ display:"block", fontSize:"12px", color:C.text, marginBottom:4, cursor:"pointer" }}>
+                      <input type="radio" name="dm-theme-mode" checked={teacherSettings.themeMode === "manual"} onChange={() => setTeacherSettings((s) => ({ ...s, themeMode: "manual" }))} style={{ marginRight:8 }} />
+                      Manual — theme list is exactly what you configure below
+                    </label>
+                    <label style={{ display:"block", fontSize:"12px", color:C.text, marginBottom:4, cursor:"pointer" }}>
+                      <input type="radio" name="dm-theme-mode" checked={teacherSettings.themeMode === "auto_preview"} onChange={() => setTeacherSettings((s) => ({ ...s, themeMode: "auto_preview" }))} style={{ marginRight:8 }} />
+                      Auto (preview) — reserved for AI-assisted theme suggestions from posts (same list for now; wire-up next)
+                    </label>
+                    {teacherSettings.themeMode === "auto_preview" && (
+                      <div style={{ fontSize:"11px", color:"#92400E", background:"#FFFBEB", border:`1px solid #FDE68A`, borderRadius:"6px", padding:"8px 10px", marginTop:6 }}>
+                        Auto mode is a placeholder: clusters still follow your saved theme rows until we connect a model pass. Faculty asked for the switch now so rollout can add suggestions without another UI pass.
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:14, marginBottom:12 }}>
+                    <label style={{ fontSize:"12px", color:C.text, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+                      <input type="checkbox" checked={teacherSettings.writingAnglesEnabled} onChange={(e) => setTeacherSettings((s) => ({ ...s, writingAnglesEnabled: e.target.checked }))} />
+                      Show Writing Angles (Full View)
+                    </label>
+                    <label style={{ fontSize:"12px", color:C.text, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+                      <input type="checkbox" checked={teacherSettings.instructorNoteEnabled} onChange={(e) => setTeacherSettings((s) => ({ ...s, instructorNoteEnabled: e.target.checked }))} />
+                      Show Instructor note (Full View)
+                    </label>
+                  </div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <label style={{ display:"block", fontSize:"12px", fontWeight:"800", color:C.text, marginBottom:6 }}>Discussion health display</label>
+                    <select value={teacherSettings.discussionHealthStyle} onChange={(e) => setTeacherSettings((s) => ({ ...s, discussionHealthStyle: e.target.value === "rings" ? "rings" : "tiles" }))} style={{ padding:"6px 10px", borderRadius:"6px", border:`1px solid ${C.border}`, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif" }}>
+                      <option value="tiles">Compact tiles (default)</option>
+                      <option value="rings">Theme coverage ring + tiles</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <label style={{ display:"block", fontSize:"12px", fontWeight:"800", color:C.text, marginBottom:6 }}>Instructor note (Full View)</label>
+                    <textarea value={teacherSettings.instructorNoteText} onChange={(e) => setTeacherSettings((s) => ({ ...s, instructorNoteText: e.target.value }))} rows={8} disabled={!teacherSettings.instructorNoteEnabled} style={{ width:"100%", padding:"10px 12px", borderRadius:"6px", border:`1px solid ${C.border}`, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", lineHeight:1.5, resize:"vertical", boxSizing:"border-box", opacity: teacherSettings.instructorNoteEnabled ? 1 : 0.55 }} placeholder="Use blank lines between paragraphs." />
+                  </div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:"12px", fontWeight:"800", color:C.text, marginBottom:6 }}>Gap scaffolding (shows ★ on map + in gap panels)</div>
+                    {clusters.filter((c) => c.isGap).length === 0 ? (
+                      <div style={{ fontSize:"12px", color:C.textLight }}>No gaps right now (every theme has at least one post).</div>
+                    ) : (
+                      clusters.filter((c) => c.isGap).map((g) => (
+                        <div key={g.id} style={{ marginBottom:10 }}>
+                          <div style={{ fontSize:"11px", color:C.textLight, marginBottom:4 }}>{g.shortLabel} <span style={{ opacity:0.7 }}>({g.id})</span></div>
+                          <textarea value={teacherSettings.gapPins[g.id] || ""} onChange={(e) => {
+                            const v = e.target.value;
+                            setTeacherSettings((s) => ({ ...s, gapPins: { ...s.gapPins, [g.id]: v } }));
+                          }} rows={2} placeholder="e.g. Instructor: Who wants to open a thread on bias in grading tools here?" style={{ width:"100%", padding:"8px 10px", borderRadius:"6px", border:`1px solid ${C.border}`, fontSize:"12px", fontFamily:"Lato,Arial,sans-serif", boxSizing:"border-box" }} />
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"center" }}>
+                    <button type="button" onClick={() => { saveDiscussionTemplate(discussionPrompt); setToast("Saved discussion template on this browser"); }} style={{ background:"none", border:`1px solid ${C.borderLight}`, borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"800", color:C.linkBlue }}>
+                      Save discussion as template
+                    </button>
+                    <button type="button" onClick={() => {
+                      const t = loadDiscussionTemplate();
+                      if (!t || (!t.title && !t.body)) { setToast("No saved template yet"); return; }
+                      setDiscussionPrompt((p) => ({ ...p, title: t.title || p.title, body: t.body || p.body }));
+                      setToast("Loaded saved template");
+                    }} style={{ background:"none", border:`1px solid ${C.borderLight}`, borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"800", color:C.text }}>
+                      Load saved template
+                    </button>
+                  </div>
+                </div>
                 <label style={{ display:"block", fontSize:"12px", fontWeight:"700", color:C.text, marginBottom:6, fontFamily:"Lato,Arial,sans-serif" }}>Discussion title</label>
                 <input value={discussionPrompt.title} onChange={e=>setDiscussionPrompt(p=>({...p,title:e.target.value}))} style={{ width:"100%", padding:"10px 12px", marginBottom:14, border:`1px solid ${C.border}`, borderRadius:"4px", fontSize:"14px", fontFamily:"Lato,Arial,sans-serif", boxSizing:"border-box" }} />
                 <label style={{ display:"block", fontSize:"12px", fontWeight:"700", color:C.text, marginBottom:6, fontFamily:"Lato,Arial,sans-serif" }}>Instructions / prompt body</label>
@@ -2985,9 +3161,9 @@ function AppMain() {
                           await setStudyThreadConfig({
                             ...STUDY_FIREBASE_IDS,
                             studyCode: studyIdentity?.code || null,
-                            patch: { clusters: cleaned },
+                            patch: { clusters: cleaned, teacherSettings },
                           });
-                          setToast("Saved map themes");
+                          setToast("Saved class setup (themes + settings)");
                         } catch (e) {
                           setToast("Save failed");
                           logEvent("firebase_posts_error", { message: String(e?.message || e) });
@@ -2995,10 +3171,10 @@ function AppMain() {
                       }}
                       style={{ background:C.canvasBlue, color:"white", border:"none", borderRadius:"999px", padding:"6px 12px", fontSize:"12px", cursor:"pointer", fontFamily:"Lato,Arial,sans-serif", fontWeight:"900" }}
                     >
-                      Save themes
+                      Save class setup
                     </button>
                     <span style={{ fontSize:"12px", color:C.textLight }}>
-                      Saved themes sync to all devices in this study thread.
+                      Saves themes + Full View / map controls for everyone in this study thread.
                     </span>
                   </div>
                 )}
@@ -3147,6 +3323,8 @@ function AppMain() {
                 keywords={isStudy ? studyKeywords : KEYWORDS}
                 selectedConnectionKey={selectedConnectionKey}
                 isStudy={isStudy}
+                gapPins={teacherSettings.gapPins}
+                discussionHealthStyle={teacherSettings.discussionHealthStyle}
                 onClusterHoverLeave={({ clusterId, isGap, durationMs }) => {
                   logEvent("cluster_hovered", { clusterId, isGap, durationMs });
                 }}
@@ -3162,6 +3340,7 @@ function AppMain() {
                 onOpenFullView={()=>{
                   sessionStorage.setItem("dm_fullview_clusters", JSON.stringify(clusters));
                   sessionStorage.setItem("dm_fullview_posts",    JSON.stringify(posts));
+                  sessionStorage.setItem("dm_fullview_teacher_settings", JSON.stringify(teacherSettings));
                   const id = getOrCreateBridgeId();
                   const u = new URL(window.location.href);
                   u.searchParams.set("fullview", "1");
